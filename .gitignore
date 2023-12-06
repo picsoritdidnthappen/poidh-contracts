@@ -8,3 +8,6 @@ target
 node_modules
 test-ledger
 .yarn
+
+yarn-error.log
+migrations
