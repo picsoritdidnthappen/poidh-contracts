@@ -17,6 +17,7 @@
     "app:build": "yarn workspace app build",
     "evm:compile": "yarn workspace evm compile",
     "evm:test": "yarn workspace evm test",
+    "anchor:test": "yarn workspace anchor test",
     "prepare": "husky install"
   },
   "devDependencies": {

@@ -1,6 +1,11 @@
 {
+    "name": "anchor",
+    "private": true,
+    "version": "1.0.0",
     "scripts": {
-        "format": "prettier */*.js \"*/**/*{.js,.ts}\" -w"
+        "format": "prettier */*.ts \"*/**/*{.js,.ts}\" -w",
+        "lint": "prettier */*.ts \"*/**/*{.js,.ts}\" --check",
+        "test": "anchor test"
     },
     "dependencies": {
         "@coral-xyz/anchor": "^0.29.0"
