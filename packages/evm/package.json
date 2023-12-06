@@ -6,7 +6,8 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "lint": "eslint . --ext .ts"
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write \"**/*.{js,ts,json,md}\""
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
@@ -23,9 +24,11 @@
     "@typescript-eslint/parser": "^6.13.2",
     "chai": "^4.2.0",
     "eslint": "^8.55.0",
+    "eslint-config-prettier": "^9.1.0",
     "ethers": "^6.4.0",
     "hardhat": "^2.19.2",
     "hardhat-gas-reporter": "^1.0.8",
+    "prettier": "^3.1.0",
     "solidity-coverage": "^0.8.0",
     "ts-node": ">=8.0.0",
     "typechain": "^8.3.0",
