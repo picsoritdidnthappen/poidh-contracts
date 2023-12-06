@@ -1,0 +1,29 @@
+{
+  "name": "poidh",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/app",
+    "packages/evm"
+  ],
+  "scripts": {
+    "app:dev": "yarn workspace app dev",
+    "app:build": "yarn workspace app build",
+    "evm:compile": "yarn workspace evm compile",
+    "evm:test": "yarn workspace evm test"
+  },
+  "devDependencies": {
+    "husky": "^7.0.0"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  }
+}
