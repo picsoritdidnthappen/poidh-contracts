@@ -2,28 +2,28 @@
   "name": "poidh",
   "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "packages/app",
-    "packages/evm"
-  ],
+  "workspaces": {
+    "packages": [
+      "packages/*"
+    ],
+    "nohoist": [
+      "husky"
+    ]
+  },
   "scripts": {
+    "lint": "yarn workspaces run lint",
     "app:dev": "yarn workspace app dev",
     "app:build": "yarn workspace app build",
     "evm:compile": "yarn workspace evm compile",
-    "evm:test": "yarn workspace evm test"
+    "evm:test": "yarn workspace evm test",
+    "prepare": "husky install"
   },
   "devDependencies": {
-    "husky": "^7.0.0"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
+    "husky": "^8.0.0",
+    "lint-staged": "^15.2.0"
   },
   "lint-staged": {
-    "*.{js,jsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ]
+    "*.js": "eslint --fix",
+    "*.{js,css,md}": "prettier --write"
   }
 }

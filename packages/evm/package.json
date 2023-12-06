@@ -6,7 +6,7 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "lint": "eslint ." 
+    "lint": "eslint . --ext .ts"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
@@ -19,7 +19,10 @@
     "@types/chai": "^4.2.0",
     "@types/mocha": ">=9.1.0",
     "@types/node": ">=16.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.2",
+    "@typescript-eslint/parser": "^6.13.2",
     "chai": "^4.2.0",
+    "eslint": "^8.55.0",
     "ethers": "^6.4.0",
     "hardhat": "^2.19.2",
     "hardhat-gas-reporter": "^1.0.8",
