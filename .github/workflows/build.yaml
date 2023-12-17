@@ -75,6 +75,8 @@ jobs:
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-${{ hashFiles('**yarn.lock') }}
+      - name: build app
+        run: yarn app:build
       - name: Lint workspaces
         run: yarn lint
       - name: compile contracts
