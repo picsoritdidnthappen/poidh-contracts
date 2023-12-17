@@ -461,18 +461,15 @@ abstract contract PoidhV2 is
 
         uint256[] memory amounts = participantAmounts[bountyId];
         uint256 i;
-        address target;
-        uint256 amount;
 
         do {
             if (msg.sender == p[i]) {
                 uint256 amount = amounts[i];
-                target = p[i];
                 participants[bountyId][i] = address(0);
                 participantAmounts[bountyId][i] = 0;
                 bounties[bountyId].amount -= amount;
 
-                (bool success, ) = target.call{value: amount}('');
+                (bool success, ) = p[i].call{value: amount}('');
                 if (!success) revert transferFailed();
 
                 break;
@@ -529,10 +526,94 @@ abstract contract PoidhV2 is
         emit ClaimAccepted(bountyId, claimId, claimIssuer, bounty.issuer, fee); // update event parameters to include the fee
     }
 
-    /** get bounties */
-    /** get claims */
+    /** Getter for the length of the bounties array */
+    function getBountiesLength() public view returns (uint256) {
+        return bounties.length;
+    }
+
+    /**
+     * @dev Returns an array of Bounties from start to end index
+     * @param start the index to start fetching bounties from
+     * @param end the index to stop fetching bounties at
+     * @return result an array of Bounties from start to end index
+     */
+    function getBounties(
+        uint start,
+        uint end
+    ) public view returns (Bounty[] memory) {
+        require(
+            start <= end,
+            "Start index must be less than or equal to end index"
+        );
+        require(end < bounties.length, "End index out of bounds");
+
+        // Calculate the size of the array to return
+        uint size = end - start + 1;
+        // Initialize an array of Bounties with the calculated size
+        Bounty[] memory result = new Bounty[](size);
+
+        // Loop from start to end index and populate the result array
+        for (uint i = 0; i < size; i++) {
+            result[i] = bounties[start + i];
+        }
+
+        return result;
+    }
+    /** get claims by bountyId*/
+    /** 
+        @dev Returns all claims associated with a bounty
+        @param bountyId the id of the bounty to fetch claims for 
+    */
+    function getClaimsByBountyId(
+        uint256 bountyId
+    ) public view returns (Claim[] memory) {
+        uint256[] memory bountyClaimIndexes = bountyClaims[bountyId];
+        Claim[] memory bountyClaimsArray = new Claim[](
+            bountyClaimIndexes.length
+        );
+
+        for (uint256 i = 0; i < bountyClaimIndexes.length; i++) {
+            bountyClaimsArray[i] = claims[bountyClaimIndexes[i]];
+        }
+
+        return bountyClaimsArray;
+    }
     /** get bounties by user */
+    /** 
+        @dev Returns all bounties for a given user 
+        @param user the address of the user to fetch bounties for
+    */
+    function getBountiesByUser(
+        address user
+    ) public view returns (Bounty[] memory) {
+        uint256[] storage userBountyIndexes = userBounties[user];
+        Bounty[] memory userBountiesArray = new Bounty[](
+            userBountyIndexes.length
+        );
+
+        for (uint256 i = 0; i < userBountyIndexes.length; i++) {
+            userBountiesArray[i] = bounties[userBountyIndexes[i]];
+        }
+
+        return userBountiesArray;
+    }
     /** get claims by user */
+    /** 
+        @dev Returns all claims for a given user 
+        @param user the address of the user to fetch claims for
+    */
+    function getClaimsByUser(
+        address user
+    ) public view returns (Claim[] memory) {
+        uint256[] storage userClaimIndexes = userClaims[user];
+        Claim[] memory userClaimsArray = new Claim[](userClaimIndexes.length);
+
+        for (uint256 i = 0; i < userClaimIndexes.length; i++) {
+            userClaimsArray[i] = claims[userClaimIndexes[i]];
+        }
+
+        return userClaimsArray;
+    }
     /** get claims by bounty */
     function tokenURI(
         uint256 tokenId
