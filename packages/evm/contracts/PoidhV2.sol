@@ -95,12 +95,10 @@ abstract contract PoidhV2 is
      * @dev Constructor function
      * @param _treasury the address of the treasury wallet
      * @param _feeNumerator the fee numerator for the royalty (1000 ~ 10%)
-     * @param _poidhV1 the address of the PoidhV1 contract
      */
     constructor(
         address _treasury,
-        uint96 _feeNumerator,
-        address _poidhV1
+        uint96 _feeNumerator
     ) ERC721("pics or it didn't happen", 'POIDH V2') {
         treasury = _treasury;
         _setDefaultRoyalty(_treasury, _feeNumerator);
@@ -205,7 +203,6 @@ abstract contract PoidhV2 is
         bounties[bountyId].amount = bounties[bountyId].amount + msg.value;
 
         emit BountyJoined(bountyId, msg.sender, msg.value);
-
     }
 
     /** Cancel Solo Bounty
@@ -343,7 +340,7 @@ abstract contract PoidhV2 is
         bountyVotingTracker[bountyId].yes += amounts[0];
         bountyVotingTracker[bountyId].deadline = block.timestamp + votingPeriod;
         bountyCurrentVotingClaim[bountyId] = claimId;
-        
+
         emit ClaimSubmittedForVote(bountyId, claimId);
     }
 
