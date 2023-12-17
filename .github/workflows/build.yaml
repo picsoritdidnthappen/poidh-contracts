@@ -79,3 +79,20 @@ jobs:
         run: yarn lint
       - name: compile contracts
         run: yarn evm:compile   
+
+  test-hardhat:
+    needs:
+      - install
+      - lint-program
+      - lint-workspaces
+    name: Test hardhat
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**yarn.lock') }}
+      - name: Test hardhat
+        run: yarn evm:test
