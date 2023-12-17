@@ -91,6 +91,21 @@ abstract contract PoidhV2 is
     event ClaimSubmittedForVote(uint256 bountyId, uint256 claimId);
     event BountyCancelled(uint256 bountyId, address issuer);
 
+    /** Errors */
+    error NoEther();
+    error BountyNotFound();
+    error ClaimNotFound();
+    error VotingOngoing();
+    error BountyClaimed();
+    error NotOpenBounty();
+    error NotSoloBounty();
+    error CancelWrongCaller();
+    error BountyClosed();
+    error transferFailed();
+    error IssuerCannotClaim();
+    error NoVotingPeriodSet();
+    error NotActiveParticipant();
+
     /**
      * @dev Constructor function
      * @param _treasury the address of the treasury wallet
@@ -111,10 +126,10 @@ abstract contract PoidhV2 is
      * @param description the description of the bounty
      */
     function createSoloBounty(
-        string memory name,
-        string memory description
+        string calldata name,
+        string calldata description
     ) external payable {
-        require(msg.value > 0, 'Bounty amount must be greater than 0');
+        if (msg.value == 0) revert NoEther();
 
         uint256 bountyId = bountyCounter;
 
@@ -129,8 +144,6 @@ abstract contract PoidhV2 is
             0
         );
         bounties.push(bounty);
-
-        // Store the bounty index in the user's array
         userBounties[msg.sender].push(bountyId);
 
         ++bountyCounter;
@@ -150,7 +163,7 @@ abstract contract PoidhV2 is
         string calldata name,
         string calldata description
     ) external payable {
-        require(msg.value > 0, 'Bounty amount must be greater than 0');
+        if (msg.value == 0) revert NoEther();
 
         uint256 bountyId = bountyCounter;
 
@@ -166,7 +179,7 @@ abstract contract PoidhV2 is
         );
 
         bounties.push(bounty);
-
+        userBounties[msg.sender].push(bountyId);
         participants[bountyId].push(msg.sender);
         participantAmounts[bountyId].push(msg.value);
 
@@ -187,20 +200,20 @@ abstract contract PoidhV2 is
      * @param bountyId the id of the bounty to be joined
      */
     function joinOpenBounty(uint256 bountyId) external payable {
-        require(msg.value > 0, 'Bounty amount must be greater than 0');
-        require(bountyCounter > bountyId, 'Bounty does not exist');
-        require(bountyCurrentVotingClaim[bountyId] == 0, 'Voting is ongoing');
+        if (msg.value == 0) revert NoEther();
+        if (bountyId >= bountyCounter) revert BountyNotFound();
+        if (bountyCurrentVotingClaim[bountyId] > 0) revert VotingOngoing();
 
         Bounty memory bounty = bounties[bountyId];
-        require(bounty.claimer == address(0), 'Bounty already claimed');
+        if (bounty.claimer != address(0)) revert BountyClaimed();
 
         address[] memory p = participants[bountyId];
-        require(p.length > 0, 'Bounty is not open');
+        if (p.length == 0) revert NotOpenBounty();
 
         participants[bountyId].push(msg.sender);
         participantAmounts[bountyId].push(msg.value);
 
-        bounties[bountyId].amount = bounties[bountyId].amount + msg.value;
+        bounties[bountyId].amount = bounty.amount + msg.value;
 
         emit BountyJoined(bountyId, msg.sender, msg.value);
     }
@@ -210,38 +223,38 @@ abstract contract PoidhV2 is
      * @param bountyId the id of the bounty to be canceled
      */
     function cancelSoloBounty(uint bountyId) external {
-        require(bountyCounter > bountyId, 'Bounty does not exist');
-        address[] memory p = participants[bountyId];
-        require(p.length == 0, 'Bounty is open');
+        if (bountyId >= bountyCounter) revert BountyNotFound();
+
         Bounty memory bounty = bounties[bountyId];
-        require(
-            msg.sender == bounty.issuer,
-            'Only the bounty issuer can cancel the bounty'
-        );
-        require(bounty.claimer == address(0), 'Bounty already claimed');
-        require(bounty.amount > 0, 'Bounty closed');
+        if (msg.sender != bounty.issuer) revert CancelWrongCaller();
+
+        if (bounty.claimer != address(0)) revert BountyClaimed();
+        if (bounty.claimer == msg.sender) revert BountyClosed();
+
+        address[] memory p = participants[bountyId];
+        if (p.length > 0) revert NotSoloBounty();
 
         uint refundAmount = bounty.amount;
         bounties[bountyId].claimer = msg.sender;
 
         (bool success, ) = bounty.issuer.call{value: refundAmount}('');
-        require(success, 'Transfer failed.');
+        if (!success) revert transferFailed();
 
         emit BountyCancelled(bountyId, bounty.issuer);
     }
 
     /** Cancel Open Bounty */
     function cancelOpenBounty(uint256 bountyId) external {
-        require(bountyCounter > bountyId, 'Bounty does not exist');
-        require(bountyCurrentVotingClaim[bountyId] == 0, 'Voting is ongoing');
+        if (bountyId >= bountyCounter) revert BountyNotFound();
+        if (bountyCurrentVotingClaim[bountyId] > 0) revert VotingOngoing();
+
         Bounty memory bounty = bounties[bountyId];
-        require(
-            msg.sender == bounty.issuer,
-            'Only the bounty issuer can cancel the bounty'
-        );
-        require(bounty.claimer == address(0), 'Bounty claimed or closed');
+        if (msg.sender != bounty.issuer) revert CancelWrongCaller();
+        if (bounty.claimer != address(0)) revert BountyClaimed();
+        if (bounty.claimer == msg.sender) revert BountyClosed();
+
         address[] memory p = participants[bountyId];
-        require(p.length > 0, 'Bounty is not open');
+        if (p.length == 0) revert NotOpenBounty();
 
         uint256[] memory amounts = participantAmounts[bountyId];
         uint256 i;
@@ -251,7 +264,7 @@ abstract contract PoidhV2 is
             uint256 amount = amounts[i];
 
             (bool success, ) = participant.call{value: amount}('');
-            require(success, 'Refund failed');
+            if (!success) revert transferFailed();
 
             ++i;
         } while (i < p.length);
@@ -271,17 +284,13 @@ abstract contract PoidhV2 is
         string calldata name,
         string calldata uri,
         string calldata description
-    ) public {
-        require(bountyCounter > bountyId, 'Bounty does not exist');
-        require(
-            bounties[bountyId].claimer == address(0),
-            'Bounty already claimed'
-        );
-        require(
-            bounties[bountyId].amount > 0,
-            'Bounty does not exist or has been cancelled'
-        );
-        require(bounties[bountyId].issuer != msg.sender, 'Issuer cannot claim');
+    ) external {
+        if (bountyId >= bountyCounter) revert BountyNotFound();
+
+        Bounty memory bounty = bounties[bountyId];
+        if (bounty.claimer != address(0)) revert BountyClaimed();
+        if (bounty.claimer == msg.sender) revert BountyClosed();
+        if (bounty.issuer == msg.sender) revert IssuerCannotClaim();
 
         uint256 claimId = claimCounter;
 
@@ -289,7 +298,7 @@ abstract contract PoidhV2 is
             claimId,
             msg.sender,
             bountyId,
-            bounties[bountyId].issuer,
+            bounty.issuer,
             name,
             description, // new field
             block.timestamp
@@ -306,7 +315,7 @@ abstract contract PoidhV2 is
             claimId,
             msg.sender,
             bountyId,
-            bounties[bountyId].issuer,
+            bounty.issuer,
             name,
             description,
             block.timestamp
@@ -318,16 +327,15 @@ abstract contract PoidhV2 is
      * @param bountyId the id of the bounty being claimed
      */
     function submitClaimForVote(uint256 bountyId, uint256 claimId) external {
-        require(bountyCounter > bountyId, 'Bounty does not exist');
-        require(claimCounter > claimId, 'Claim does not exist');
+        if (bountyId >= bountyCounter) revert BountyNotFound();
+        if (claimId >= claimCounter) revert ClaimNotFound();
+
         Bounty memory bounty = bounties[bountyId];
-        require(
-            msg.sender == bounty.issuer,
-            'Only the bounty issuer can cancel the bounty'
-        );
-        require(bounty.claimer == address(0), 'Bounty claimed or closed');
+        if (bounty.claimer != address(0)) revert BountyClaimed();
+        if (bounty.claimer == bounty.issuer) revert BountyClosed();
+
         address[] memory p = participants[bountyId];
-        require(p.length > 0, 'Bounty is not open');
+        if (p.length == 0) revert NotOpenBounty();
 
         uint256[] memory amounts = participantAmounts[bountyId];
 
@@ -337,8 +345,9 @@ abstract contract PoidhV2 is
             return;
         }
 
-        bountyVotingTracker[bountyId].yes += amounts[0];
-        bountyVotingTracker[bountyId].deadline = block.timestamp + votingPeriod;
+        Votes storage votingTracker = bountyVotingTracker[bountyId];
+        votingTracker.yes += amounts[0];
+        votingTracker.deadline = block.timestamp + votingPeriod;
         bountyCurrentVotingClaim[bountyId] = claimId;
 
         emit ClaimSubmittedForVote(bountyId, claimId);
@@ -349,15 +358,17 @@ abstract contract PoidhV2 is
      * @param bountyId the id of the bounty to vote for
      */
     function voteClaim(uint256 bountyId, bool vote) external {
-        require(bountyCounter > bountyId, 'Bounty does not exist');
+        if (bountyId >= bountyCounter) revert BountyNotFound();
+
         Bounty memory bounty = bounties[bountyId];
-        require(bounty.amount > 0, 'Bounty closed');
-        require(bounty.claimer == address(0), 'Bounty already claimed');
+        if (bounty.claimer != address(0)) revert BountyClaimed();
+        if (bounty.claimer == bounty.issuer) revert BountyClosed();
+
         address[] memory p = participants[bountyId];
-        require(p.length > 0, 'Bounty is not open');
+        if (p.length == 0) revert NotOpenBounty();
 
         uint256 currentClaim = bountyCurrentVotingClaim[bountyId];
-        require(currentClaim > 0, 'No claim is active');
+       if (currentClaim == 0) revert NoVotingPeriodSet();
 
         uint256[] memory amounts = participantAmounts[bountyId];
         uint256 i;
@@ -373,10 +384,11 @@ abstract contract PoidhV2 is
             ++i;
         } while (i < p.length);
 
-        require(isParticipant, 'Not an active participant');
+        if (!isParticipant) revert NotActiveParticipant();
 
         Votes memory votingTracker = bountyVotingTracker[bountyId];
 
+        // TODO: create a function to force reset voting period, and just conditionally check for deadline here
         if (block.timestamp > votingTracker.deadline) {
             // reset for new vote cycle
             bountyCurrentVotingClaim[bountyId] = 0;
