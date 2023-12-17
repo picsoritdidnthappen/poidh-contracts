@@ -105,6 +105,7 @@ abstract contract PoidhV2 is
     error IssuerCannotClaim();
     error NoVotingPeriodSet();
     error NotActiveParticipant();
+    error BountyAmountTooHigh();
 
     /**
      * @dev Constructor function
@@ -394,8 +395,7 @@ abstract contract PoidhV2 is
                 return;
             }
             bountyVotingTracker[bountyId].yes += participantAmount;
-        } 
-        else {
+        } else {
             bountyVotingTracker[bountyId].no += participantAmount;
         }
     }
@@ -404,7 +404,7 @@ abstract contract PoidhV2 is
      * @dev Reset the voting period for an open bounty
      * @param bountyId the id of the bounty being claimed
      */
-    function resetVotingPeriod (uint256 bountyId) external {
+    function resetVotingPeriod(uint256 bountyId) external {
         if (bountyId >= bountyCounter) revert BountyNotFound();
 
         Bounty memory bounty = bounties[bountyId];
@@ -488,27 +488,20 @@ abstract contract PoidhV2 is
      * @param claimId the id of the claim being accepted
      */
     function acceptClaim(uint256 bountyId, uint256 claimId) public {
-        require(bountyId < bounties.length, 'Bounty does not exist');
-        require(claimId < claims.length, 'Claim does not exist');
+        if (bountyId >= bountyCounter) revert BountyNotFound();
+        if (claimId >= claimCounter) revert ClaimNotFound();
 
-        Bounty storage bounty = bounties[bountyId];
-        require(bounty.claimer == address(0), 'Bounty already claimed');
-        require(
-            bounty.issuer == msg.sender,
-            'Only the bounty issuer can accept a claim'
-        );
-        require(
-            bounty.amount <= address(this).balance,
-            'Bounty amount is greater than contract balance'
-        );
-        require(bounty.amount > 0, 'Bounty has been cancelled');
+        Bounty memory bounty = bounties[bountyId];
+        if (bounty.claimer != address(0)) revert BountyClaimed();
+        if (bounty.claimer == bounty.issuer) revert BountyClosed();
+        if (bounty.amount > address(this).balance) revert BountyAmountTooHigh();
 
         address claimIssuer = claims[claimId].issuer;
         uint256 bountyAmount = bounty.amount;
 
         // Close out the bounty
-        bounty.claimer = claimIssuer;
-        bounty.claimId = claimId;
+        bounties[bountyId].claimer = claimIssuer;
+        bounties[bountyId].claimId = claimId;
 
         // Calculate the fee (2.5% of bountyAmount)
         uint256 fee = (bountyAmount * 25) / 1000;
@@ -528,10 +521,10 @@ abstract contract PoidhV2 is
 
         // Finally, transfer the bounty amount to the claim issuer
         (bool s1, ) = pendingPayee.call{value: pendingPayment}('');
-        require(s1, 'Transfer failed.');
+        if (!s1) revert transferFailed();
 
         (bool s2, ) = t.call{value: fee}('');
-        require(s2, 'Transfer failed.');
+        if (!s2) revert transferFailed();
 
         emit ClaimAccepted(bountyId, claimId, claimIssuer, bounty.issuer, fee); // update event parameters to include the fee
     }
