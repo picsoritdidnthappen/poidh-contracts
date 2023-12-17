@@ -30,6 +30,7 @@ jobs:
           key: ${{ runner.os }}-modules-${{ hashFiles('**yarn.lock') }}
       - name: Install dependencies
         run: |
+          export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
           yarn --frozen-lockfile --network-concurrency 2
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -42,12 +43,9 @@ jobs:
           sudo apt-get install -y pkg-config build-essential libudev-dev
       - name: Install solana cli
         if: steps.cache-solana-cli.outputs.cache-hit != 'true'
-        run: >
-          sh -c "$(curl -sSfL https://release.solana.com/${{ env.solana_version
-          }}/install)"
-
-          export
-          PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+        run: |
+          sh -c "$(curl -sSfL https://release.solana.com/${{ env.solana_version }}/install)"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           solana --version
 
   lint-program:
