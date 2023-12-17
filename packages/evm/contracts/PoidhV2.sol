@@ -99,7 +99,7 @@ abstract contract PoidhV2 is
     error BountyClaimed();
     error NotOpenBounty();
     error NotSoloBounty();
-    error CancelWrongCaller();
+    error WrongCaller();
     error BountyClosed();
     error transferFailed();
     error IssuerCannotClaim();
@@ -226,7 +226,7 @@ abstract contract PoidhV2 is
         if (bountyId >= bountyCounter) revert BountyNotFound();
 
         Bounty memory bounty = bounties[bountyId];
-        if (msg.sender != bounty.issuer) revert CancelWrongCaller();
+        if (msg.sender != bounty.issuer) revert WrongCaller();
 
         if (bounty.claimer != address(0)) revert BountyClaimed();
         if (bounty.claimer == msg.sender) revert BountyClosed();
@@ -249,7 +249,7 @@ abstract contract PoidhV2 is
         if (bountyCurrentVotingClaim[bountyId] > 0) revert VotingOngoing();
 
         Bounty memory bounty = bounties[bountyId];
-        if (msg.sender != bounty.issuer) revert CancelWrongCaller();
+        if (msg.sender != bounty.issuer) revert WrongCaller();
         if (bounty.claimer != address(0)) revert BountyClaimed();
         if (bounty.claimer == msg.sender) revert BountyClosed();
 
@@ -368,36 +368,24 @@ abstract contract PoidhV2 is
         if (p.length == 0) revert NotOpenBounty();
 
         uint256 currentClaim = bountyCurrentVotingClaim[bountyId];
-       if (currentClaim == 0) revert NoVotingPeriodSet();
+        if (currentClaim == 0) revert NoVotingPeriodSet();
 
         uint256[] memory amounts = participantAmounts[bountyId];
         uint256 i;
-        bool isParticipant;
         uint256 participantAmount;
 
         do {
             if (msg.sender == p[i]) {
-                isParticipant = true;
                 participantAmount = amounts[i];
+                break;
             }
 
             ++i;
         } while (i < p.length);
 
-        if (!isParticipant) revert NotActiveParticipant();
+        if (participantAmount == 0) revert NotActiveParticipant();
 
         Votes memory votingTracker = bountyVotingTracker[bountyId];
-
-        // TODO: create a function to force reset voting period, and just conditionally check for deadline here
-        if (block.timestamp > votingTracker.deadline) {
-            // reset for new vote cycle
-            bountyCurrentVotingClaim[bountyId] = 0;
-            bountyVotingTracker[bountyId].yes = 0;
-            bountyVotingTracker[bountyId].no = 0;
-            bountyVotingTracker[bountyId].deadline = 0;
-
-            return;
-        }
 
         if (vote) {
             if (votingTracker.yes + participantAmount > bounty.amount / 2) {
@@ -406,9 +394,92 @@ abstract contract PoidhV2 is
                 return;
             }
             bountyVotingTracker[bountyId].yes += participantAmount;
-        } else {
+        } 
+        else {
             bountyVotingTracker[bountyId].no += participantAmount;
         }
+    }
+
+    /**
+     * @dev Reset the voting period for an open bounty
+     * @param bountyId the id of the bounty being claimed
+     */
+    function resetVotingPeriod (uint256 bountyId) external {
+        if (bountyId >= bountyCounter) revert BountyNotFound();
+
+        Bounty memory bounty = bounties[bountyId];
+        if (bounty.issuer != msg.sender) revert WrongCaller();
+        if (bounty.claimer != address(0)) revert BountyClaimed();
+        if (bounty.claimer == bounty.issuer) revert BountyClosed();
+
+        address[] memory p = participants[bountyId];
+        if (p.length == 0) revert NotOpenBounty();
+
+        uint256 currentClaim = bountyCurrentVotingClaim[bountyId];
+        if (currentClaim == 0) revert NoVotingPeriodSet();
+
+        uint256[] memory amounts = participantAmounts[bountyId];
+        uint256 i;
+        uint256 participantAmount;
+
+        do {
+            if (msg.sender == p[i]) {
+                participantAmount = amounts[i];
+                break;
+            }
+
+            ++i;
+        } while (i < p.length);
+
+        if (participantAmount == 0) revert NotActiveParticipant();
+
+        Votes storage votingTracker = bountyVotingTracker[bountyId];
+
+        if (block.timestamp < votingTracker.deadline) revert VotingOngoing();
+
+        bountyCurrentVotingClaim[bountyId] = 0;
+        bountyVotingTracker[bountyId].yes = 0;
+        bountyVotingTracker[bountyId].no = 0;
+        bountyVotingTracker[bountyId].deadline = 0;
+    }
+
+    /**
+     * @dev Allow bounty participants to withdraw from a bounty that is not currently being voted on
+     * @param bountyId the id of the bounty to withdraw from
+     */
+    function withdrawFromOpenBounty(uint256 bountyId) external {
+        if (bountyId >= bountyCounter) revert BountyNotFound();
+
+        Bounty memory bounty = bounties[bountyId];
+        if (bounty.claimer != address(0)) revert BountyClaimed();
+        if (bounty.claimer == bounty.issuer) revert BountyClosed();
+
+        address[] memory p = participants[bountyId];
+        if (p.length == 0) revert NotOpenBounty();
+
+        if (bountyCurrentVotingClaim[bountyId] > 0) revert VotingOngoing();
+
+        uint256[] memory amounts = participantAmounts[bountyId];
+        uint256 i;
+        address target;
+        uint256 amount;
+
+        do {
+            if (msg.sender == p[i]) {
+                uint256 amount = amounts[i];
+                target = p[i];
+                participants[bountyId][i] = address(0);
+                participantAmounts[bountyId][i] = 0;
+                bounties[bountyId].amount -= amount;
+
+                (bool success, ) = target.call{value: amount}('');
+                if (!success) revert transferFailed();
+
+                break;
+            }
+
+            ++i;
+        } while (i < p.length);
     }
 
     /**
