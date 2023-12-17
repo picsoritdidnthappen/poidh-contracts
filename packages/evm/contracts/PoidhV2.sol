@@ -87,6 +87,8 @@ abstract contract PoidhV2 is
         address bountyIssuer,
         uint256 fee
     );
+    event BountyJoined(uint256 bountyId, address participant, uint256 amount);
+    event ClaimSubmittedForVote(uint256 bountyId, uint256 claimId);
     event BountyCancelled(uint256 bountyId, address issuer);
 
     /**
@@ -202,7 +204,8 @@ abstract contract PoidhV2 is
 
         bounties[bountyId].amount = bounties[bountyId].amount + msg.value;
 
-        /** TODO: join event */
+        emit BountyJoined(bountyId, msg.sender, msg.value);
+
     }
 
     /** Cancel Solo Bounty
@@ -340,7 +343,8 @@ abstract contract PoidhV2 is
         bountyVotingTracker[bountyId].yes += amounts[0];
         bountyVotingTracker[bountyId].deadline = block.timestamp + votingPeriod;
         bountyCurrentVotingClaim[bountyId] = claimId;
-        /** TODO: claim submitted for vote event */
+        
+        emit ClaimSubmittedForVote(bountyId, claimId);
     }
 
     /**
