@@ -543,9 +543,9 @@ abstract contract PoidhV2 is
     ) public view returns (Bounty[] memory) {
         require(
             start <= end,
-            "Start index must be less than or equal to end index"
+            'Start index must be less than or equal to end index'
         );
-        require(end < bounties.length, "End index out of bounds");
+        require(end < bounties.length, 'End index out of bounds');
 
         // Calculate the size of the array to return
         uint size = end - start + 1;
@@ -559,6 +559,7 @@ abstract contract PoidhV2 is
 
         return result;
     }
+
     /** get claims by bountyId*/
     /** 
         @dev Returns all claims associated with a bounty
@@ -578,6 +579,7 @@ abstract contract PoidhV2 is
 
         return bountyClaimsArray;
     }
+
     /** get bounties by user */
     /** 
         @dev Returns all bounties for a given user 
@@ -597,6 +599,7 @@ abstract contract PoidhV2 is
 
         return userBountiesArray;
     }
+
     /** get claims by user */
     /** 
         @dev Returns all claims for a given user 
@@ -614,6 +617,15 @@ abstract contract PoidhV2 is
 
         return userClaimsArray;
     }
+
+    /** helper for determining if a bounty is open or closed */
+
+    function isOpenBounty(uint256 bountyId) external view returns (bool) {
+        address[] memory p = participants[bountyId];
+        if (p.length == 0) return false;
+        return true;
+    }
+
     /** get claims by bounty */
     function tokenURI(
         uint256 tokenId
