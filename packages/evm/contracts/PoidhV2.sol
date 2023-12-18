@@ -7,7 +7,7 @@ import '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol';
 
-abstract contract PoidhV2 is
+contract PoidhV2 is
     ERC721,
     ERC721Enumerable,
     ERC721URIStorage,
@@ -618,14 +618,6 @@ abstract contract PoidhV2 is
         return userClaimsArray;
     }
 
-    /** helper for determining if a bounty is open or closed */
-
-    function isOpenBounty(uint256 bountyId) external view returns (bool) {
-        address[] memory p = participants[bountyId];
-        if (p.length == 0) return false;
-        return true;
-    }
-
     /** get claims by bounty */
     function tokenURI(
         uint256 tokenId
@@ -657,5 +649,14 @@ abstract contract PoidhV2 is
         address auth
     ) internal virtual override(ERC721, ERC721Enumerable) returns (address) {
         return super._update(to, tokenId, auth);
+    }
+
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes memory
+    ) public virtual override returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 }
