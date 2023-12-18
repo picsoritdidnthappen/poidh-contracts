@@ -8,7 +8,7 @@ env:
   solana_version: stable
 jobs:
   install:
-    name: Install dependencies
+    name: install
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -50,7 +50,7 @@ jobs:
 
   lint-program:
     needs: install
-    name: Lint program
+    name: lint-program
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -64,7 +64,7 @@ jobs:
   lint-workspaces:
     needs:
       - install
-      - lint-program
+    name: lint-workspaces
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -80,12 +80,11 @@ jobs:
       - name: compile contracts
         run: yarn evm:compile   
 
-  test-evm:
+  test-hardhat:
     needs:
       - install
-      - lint-program
       - lint-workspaces
-    name: Test hardhat
+    name: test-hardhat
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -97,14 +96,12 @@ jobs:
       - name: Test hardhat
         run: yarn evm:test
 
-  test-solana:
+  test-anchor:
     needs:
       - install
       - lint-program
-      - lint-workspaces
-      - test-evm
     runs-on: ubuntu-latest
-  
+    name: test-anchor
     steps:
     - uses: actions/checkout@v3
   
