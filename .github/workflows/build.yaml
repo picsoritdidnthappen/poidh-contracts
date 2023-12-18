@@ -80,7 +80,7 @@ jobs:
       - name: compile contracts
         run: yarn evm:compile   
 
-  test-hardhat:
+  test-evm:
     needs:
       - install
       - lint-program
@@ -96,3 +96,47 @@ jobs:
           key: ${{ runner.os }}-modules-${{ hashFiles('**yarn.lock') }}
       - name: Test hardhat
         run: yarn evm:test
+
+  test-solana:
+    needs:
+      - install
+      - lint-program
+      - lint-workspaces
+      - test-evm
+    runs-on: ubuntu-latest
+  
+    steps:
+    - uses: actions/checkout@v3
+  
+    - name: Cache node modules
+      uses: actions/cache@v3
+      with:
+        path: '**/node_modules'
+        key: ${{ runner.os }}-modules-${{ hashFiles('**yarn.lock') }}  
+  
+    - uses: actions/cache@v3 
+      name: Cache solana cli
+      id: cache-solana-cli
+      with:
+        path: |  
+          ~/.cache/solana
+          ~/.local/share/solana
+        key: ${{ runner.os }}-solana-${{ env.solana_version }}
+  
+    - name: Set up Solana
+      run: |
+        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"  
+        solana-keygen new --silent --no-bip39-passphrase
+  
+    - name: Run Solana tests
+      run: |
+        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+        yarn anchor:test
+  
+    - uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: program-logs
+        path: .anchor/program-logs/*
+
+
