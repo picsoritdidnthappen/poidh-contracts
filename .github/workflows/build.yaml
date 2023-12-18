@@ -17,7 +17,7 @@ jobs:
         id: cache-solana-cli
         with:
           path: |
-            ~/.cache/solana
+            ~/.cache/solana/
             ~/.local/share/solana/
           key: '${{ runner.os }}-solana-${{ env.solana_version }}'
       - uses: actions/setup-node@v3
@@ -119,8 +119,8 @@ jobs:
       id: cache-solana-cli
       with:
         path: |  
-          ~/.cache/solana
-          ~/.local/share/solana
+          ~/.cache/solana/
+          ~/.local/share/solana/
         key: ${{ runner.os }}-solana-${{ env.solana_version }}
   
     - name: Set up Solana
