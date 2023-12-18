@@ -115,7 +115,7 @@ contract PoidhV2 is
     constructor(
         address _treasury,
         uint96 _feeNumerator
-    ) ERC721("pics or it didn't happen", 'POIDH V2') {
+    ) ERC721("pics or it didnt happen", 'POIDH V2') {
         treasury = _treasury;
         _setDefaultRoyalty(_treasury, _feeNumerator);
     }
