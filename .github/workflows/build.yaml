@@ -131,7 +131,7 @@ jobs:
     - name: Run Solana tests
       run: |
         export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-        yarn add -D -w @coral-xyz/anchor-cli
+        yarn add -D -W @coral-xyz/anchor-cli
         yarn anchor:test
   
     - uses: actions/upload-artifact@v3
