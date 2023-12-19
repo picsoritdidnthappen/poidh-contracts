@@ -408,7 +408,6 @@ contract PoidhV2 is
         if (bountyId >= bountyCounter) revert BountyNotFound();
 
         Bounty memory bounty = bounties[bountyId];
-        if (bounty.issuer != msg.sender) revert WrongCaller();
         if (bounty.claimer != address(0)) revert BountyClaimed();
         if (bounty.claimer == bounty.issuer) revert BountyClosed();
 
