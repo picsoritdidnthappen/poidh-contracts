@@ -7,7 +7,7 @@ import '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol';
 
-contract PoidhV2Nft is     
+contract PoidhV2Nft is
     ERC721,
     ERC721Enumerable,
     ERC721URIStorage,
@@ -16,6 +16,7 @@ contract PoidhV2Nft is
 {
     address public immutable poidhV2Authority;
     address public poidh;
+
     /**
      * @dev Constructor function
      * @param _poidhV2Authority the address of the royalty recipient
@@ -26,24 +27,28 @@ contract PoidhV2Nft is
         address _treasury,
         address _poidhV2Authority,
         uint96 _feeNumerator
-    ) ERC721("pics or it didnt happen", 'POIDH V2') {
+    ) ERC721('pics or it didnt happen', 'POIDH V2') {
         poidhV2Authority = _poidhV2Authority;
         _setDefaultRoyalty(_treasury, _feeNumerator);
     }
 
     function setPoidhV2(address _poidhV2) external {
-        require(msg.sender == poidhV2Authority, "only poidhV2Authority can set poidhV2");
+        require(
+            msg.sender == poidhV2Authority,
+            'only poidhV2Authority can set poidhV2'
+        );
         poidh = _poidhV2;
     }
 
-    function mint(address to, string calldata uri, uint256 claimCounter) external {
+    function mint(
+        address to,
+        uint256 claimCounter
+    ) external {
         if (msg.sender != poidh) {
-            revert("only poidh can mint");
+            revert('only poidh can mint');
         }
 
         _mint(to, claimCounter);
-        _setTokenURI(claimCounter, uri);
-
         ++claimCounter;
     }
 

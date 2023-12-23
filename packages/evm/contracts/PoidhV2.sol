@@ -6,7 +6,12 @@ import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 interface PoidhV2Nft is IERC721 {
     function setTokenURI(uint256 tokenId, string memory _tokenURI) external;
     function mint(address to, uint256 claimCounter) external;
-    function safeTransfer(address from, address to, uint256 tokenId, bytes memory _data) external;
+    function safeTransfer(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory _data
+    ) external;
 }
 
 contract PoidhV2 {
@@ -67,7 +72,7 @@ contract PoidhV2 {
 
     address public immutable poidhAuthority;
     bool public poidhV2NftSet = false;
-    PoidhV2Nft public immutable poidhV2Nft;  
+    PoidhV2Nft public immutable poidhV2Nft;
 
     /** mappings */
     mapping(address => uint256[]) public userBounties;
@@ -145,10 +150,8 @@ contract PoidhV2 {
         if (p.length == 0) revert NotOpenBounty();
         _;
     }
-    
-    constructor(
-        address _poidhV2Nft
-    ) {
+
+    constructor(address _poidhV2Nft) {
         poidhV2Nft = PoidhV2Nft(_poidhV2Nft);
     }
 
