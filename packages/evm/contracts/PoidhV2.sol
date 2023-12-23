@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
-import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
-import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
-import '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
-import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
-import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol';
+import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 
-contract PoidhV2 is
-    ERC721,
-    ERC721Enumerable,
-    ERC721URIStorage,
-    IERC721Receiver,
-    ERC721Royalty
-{
+interface PoidhV2Nft is IERC721 {
+    function setTokenURI(uint256 tokenId, string memory _tokenURI) external;
+    function mint(address to, uint256 claimCounter) external;
+    function safeTransfer(address from, address to, uint256 tokenId, bytes memory _data) external;
+}
+
+contract PoidhV2 {
     /** Data structures */
     struct Bounty {
         uint256 id;
@@ -68,6 +64,10 @@ contract PoidhV2 is
     uint256 public claimCounter = 1;
 
     uint256 public votingPeriod = 2 days;
+
+    address public immutable poidhAuthority;
+    bool public poidhV2NftSet = false;
+    PoidhV2Nft public immutable poidhV2Nft;  
 
     /** mappings */
     mapping(address => uint256[]) public userBounties;
@@ -145,18 +145,11 @@ contract PoidhV2 is
         if (p.length == 0) revert NotOpenBounty();
         _;
     }
-
-    /**
-     * @dev Constructor function
-     * @param _treasury the address of the treasury wallet
-     * @param _feeNumerator the fee numerator for the royalty (1000 ~ 10%)
-     */
+    
     constructor(
-        address _treasury,
-        uint96 _feeNumerator
-    ) ERC721("pics or it didn't happen", 'POIDH V2') {
-        treasury = _treasury;
-        _setDefaultRoyalty(_treasury, _feeNumerator);
+        address _poidhV2Nft
+    ) {
+        poidhV2Nft = PoidhV2Nft(_poidhV2Nft);
     }
 
     /** Create Solo Bounty */
@@ -335,8 +328,8 @@ contract PoidhV2 is
         userClaims[msg.sender].push(claimId);
         bountyClaims[bountyId].push(claimId);
 
-        _mint(address(this), claimId);
-        _setTokenURI(claimId, uri);
+        poidhV2Nft.mint(address(this), claimId);
+        poidhV2Nft.setTokenURI(claimId, uri);
 
         emit ClaimCreated(
             claimId,
@@ -499,7 +492,7 @@ contract PoidhV2 is
         address payable t = payable(treasury); // replace 'treasury_address_here' with your actual treasury address
 
         // Transfer the claim NFT to the bounty issuer
-        _safeTransfer(address(this), msg.sender, claimId, '');
+        poidhV2Nft.safeTransfer(address(this), msg.sender, claimId, '');
 
         // Finally, transfer the bounty amount to the claim issuer
         (bool s1, ) = pendingPayee.call{value: pendingPayment}('');
@@ -530,7 +523,7 @@ contract PoidhV2 is
             Bounty storage bounty = bounties[offset + i];
 
             Votes storage vote = bountyVotingTracker[bounty.id];
-            
+
             result[i] = ViewBounty({
                 id: bounty.id,
                 issuer: bounty.issuer,
@@ -605,47 +598,5 @@ contract PoidhV2 is
         }
 
         return userClaimsArray;
-    }
-
-    /** get claims by bounty */
-    function tokenURI(
-        uint256 tokenId
-    ) public view override(ERC721, ERC721URIStorage) returns (string memory) {
-        return super.tokenURI(tokenId);
-    }
-
-    function supportsInterface(
-        bytes4 interfaceId
-    )
-        public
-        view
-        override(ERC721, ERC721Enumerable, ERC721URIStorage, ERC721Royalty)
-        returns (bool)
-    {
-        return super.supportsInterface(interfaceId);
-    }
-
-    function _increaseBalance(
-        address account,
-        uint128 amount
-    ) internal virtual override(ERC721, ERC721Enumerable) {
-        super._increaseBalance(account, amount);
-    }
-
-    function _update(
-        address to,
-        uint256 tokenId,
-        address auth
-    ) internal virtual override(ERC721, ERC721Enumerable) returns (address) {
-        return super._update(to, tokenId, auth);
-    }
-
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public virtual override returns (bytes4) {
-        return this.onERC721Received.selector;
     }
 }
