@@ -341,7 +341,6 @@ contract PoidhV2 is
         uint256 claimId
     ) external bountyChecks(bountyId) openBountyChecks(bountyId) {
         if (claimId >= claimCounter) revert ClaimNotFound();
-        Bounty memory bounty = bounties[bountyId];
 
         uint256[] memory amounts = participantAmounts[bountyId];
 
@@ -361,8 +360,6 @@ contract PoidhV2 is
         uint256 bountyId,
         bool vote
     ) external bountyChecks(bountyId) {
-        Bounty memory bounty = bounties[bountyId];
-
         address[] memory p = participants[bountyId];
         if (p.length == 0) revert NotOpenBounty();
 
@@ -387,7 +384,10 @@ contract PoidhV2 is
         Votes memory votingTracker = bountyVotingTracker[bountyId];
 
         if (vote) {
-            if (votingTracker.yes + participantAmount > (votingTracker.yes + votingTracker.no) / 2) {
+            if (
+                votingTracker.yes + participantAmount >
+                (votingTracker.yes + votingTracker.no) / 2
+            ) {
                 // accept claim and close out bounty
                 acceptClaim(bountyId, currentClaim);
                 return;
