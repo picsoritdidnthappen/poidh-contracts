@@ -136,6 +136,7 @@ contract PoidhV2 {
      * Checks if the bounty is open
      * Checks if the bounty is currently being voted on
      */
+
     modifier bountyChecks(uint256 bountyId) {
         if (bountyId >= bountyCounter) revert BountyNotFound();
         Bounty memory bounty = bounties[bountyId];
