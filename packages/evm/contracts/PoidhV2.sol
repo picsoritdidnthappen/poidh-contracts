@@ -26,6 +26,22 @@ contract PoidhV2 is
         uint256 claimId;
     }
 
+    struct ViewBounty {
+        uint256 id;
+        address issuer;
+        string name;
+        string description;
+        uint256 amount;
+        address claimer;
+        uint256 createdAt;
+        uint256 claimId;
+        address[] participants;
+        uint256[] participantAmounts;
+        uint256 yesVotes;
+        uint256 noVotes;
+        uint256 deadline;
+    }
+
     struct Claim {
         uint256 id;
         address issuer;
@@ -502,31 +518,35 @@ contract PoidhV2 is
 
     /**
      * @dev Returns an array of Bounties from start to end index
-     * @param start the index to start fetching bounties from
-     * @param end the index to stop fetching bounties at
+     * @param offset the index to start fetching bounties from
      * @return result an array of Bounties from start to end index
      */
     function getBounties(
-        uint start,
-        uint end
-    ) public view returns (Bounty[] memory) {
-        require(
-            start <= end,
-            'Start index must be less than or equal to end index'
-        );
-        require(end < bounties.length, 'End index out of bounds');
+        uint offset
+    ) public view returns (ViewBounty[10] memory result) {
+        require(offset + 10 <= bounties.length, 'End index out of bounds');
 
-        // Calculate the size of the array to return
-        uint size = end - start + 1;
-        // Initialize an array of Bounties with the calculated size
-        Bounty[] memory result = new Bounty[](size);
+        for (uint i = 0; i < 10; i++) {
+            Bounty storage bounty = bounties[offset + i];
 
-        // Loop from start to end index and populate the result array
-        for (uint i = 0; i < size; i++) {
-            result[i] = bounties[start + i];
+            Votes storage vote = bountyVotingTracker[bounty.id];
+            
+            result[i] = ViewBounty({
+                id: bounty.id,
+                issuer: bounty.issuer,
+                name: bounty.name,
+                description: bounty.description,
+                amount: bounty.amount,
+                claimer: bounty.claimer,
+                createdAt: bounty.createdAt,
+                claimId: bounty.claimId,
+                participants: participants[bounty.id],
+                participantAmounts: participantAmounts[bounty.id],
+                yesVotes: vote.yes,
+                noVotes: vote.no,
+                deadline: vote.deadline
+            });
         }
-
-        return result;
     }
 
     /** get claims by bountyId*/
