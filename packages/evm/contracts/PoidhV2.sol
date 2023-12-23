@@ -107,6 +107,28 @@ contract PoidhV2 is
     error NotActiveParticipant();
     error BountyAmountTooHigh();
 
+    /** modifiers */
+    /** @dev
+        * Checks if the bounty exists
+        * Checks if the bounty is claimed
+        * Checks if the bounty is open
+        * Checks if the bounty is currently being voted on
+     */
+    modifier bountyChecks(uint256 bountyId) {
+        if (bountyId >= bountyCounter) revert BountyNotFound();
+        Bounty memory bounty = bounties[bountyId];
+        if (bounty.claimer != address(0)) revert BountyClaimed();
+        if (bounty.claimer == bounty.issuer) revert BountyClosed();
+        _;
+    }
+
+    modifier openBountyChecks(uint256 bountyId) {
+        if (bountyCurrentVotingClaim[bountyId] > 0) revert VotingOngoing();
+        address[] memory p = participants[bountyId];
+        if (p.length == 0) revert NotOpenBounty();
+        _;
+    }
+
     /**
      * @dev Constructor function
      * @param _treasury the address of the treasury wallet
@@ -200,16 +222,10 @@ contract PoidhV2 is
      * @dev Allows the sender join an open bounty as a participant with msg.value shares
      * @param bountyId the id of the bounty to be joined
      */
-    function joinOpenBounty(uint256 bountyId) external payable {
+    function joinOpenBounty(uint256 bountyId) bountyChecks(bountyId) openBountyChecks(bountyId) external payable {
         if (msg.value == 0) revert NoEther();
-        if (bountyId >= bountyCounter) revert BountyNotFound();
-        if (bountyCurrentVotingClaim[bountyId] > 0) revert VotingOngoing();
 
         Bounty memory bounty = bounties[bountyId];
-        if (bounty.claimer != address(0)) revert BountyClaimed();
-
-        address[] memory p = participants[bountyId];
-        if (p.length == 0) revert NotOpenBounty();
 
         participants[bountyId].push(msg.sender);
         participantAmounts[bountyId].push(msg.value);
@@ -223,14 +239,9 @@ contract PoidhV2 is
      * @dev Allows the sender to cancel a bounty with a given id
      * @param bountyId the id of the bounty to be canceled
      */
-    function cancelSoloBounty(uint bountyId) external {
-        if (bountyId >= bountyCounter) revert BountyNotFound();
-
+    function cancelSoloBounty(uint bountyId) bountyChecks(bountyId) external {
         Bounty memory bounty = bounties[bountyId];
         if (msg.sender != bounty.issuer) revert WrongCaller();
-
-        if (bounty.claimer != address(0)) revert BountyClaimed();
-        if (bounty.claimer == msg.sender) revert BountyClosed();
 
         address[] memory p = participants[bountyId];
         if (p.length > 0) revert NotSoloBounty();
@@ -245,24 +256,22 @@ contract PoidhV2 is
     }
 
     /** Cancel Open Bounty */
-    function cancelOpenBounty(uint256 bountyId) external {
-        if (bountyId >= bountyCounter) revert BountyNotFound();
-        if (bountyCurrentVotingClaim[bountyId] > 0) revert VotingOngoing();
-
+    function cancelOpenBounty(uint256 bountyId) bountyChecks(bountyId) openBountyChecks(bountyId) external {
         Bounty memory bounty = bounties[bountyId];
         if (msg.sender != bounty.issuer) revert WrongCaller();
-        if (bounty.claimer != address(0)) revert BountyClaimed();
-        if (bounty.claimer == msg.sender) revert BountyClosed();
 
         address[] memory p = participants[bountyId];
-        if (p.length == 0) revert NotOpenBounty();
-
         uint256[] memory amounts = participantAmounts[bountyId];
         uint256 i;
 
         do {
             address participant = p[i];
             uint256 amount = amounts[i];
+
+            if (participant == address(0)) {
+                ++i;
+                continue;
+            }
 
             (bool success, ) = participant.call{value: amount}('');
             if (!success) revert transferFailed();
@@ -285,12 +294,8 @@ contract PoidhV2 is
         string calldata name,
         string calldata uri,
         string calldata description
-    ) external {
-        if (bountyId >= bountyCounter) revert BountyNotFound();
-
+    ) bountyChecks(bountyId) external {
         Bounty memory bounty = bounties[bountyId];
-        if (bounty.claimer != address(0)) revert BountyClaimed();
-        if (bounty.claimer == msg.sender) revert BountyClosed();
         if (bounty.issuer == msg.sender) revert IssuerCannotClaim();
 
         uint256 claimId = claimCounter;
@@ -327,16 +332,9 @@ contract PoidhV2 is
      * @dev Bounty issuer submits claim for voting and casts their vote
      * @param bountyId the id of the bounty being claimed
      */
-    function submitClaimForVote(uint256 bountyId, uint256 claimId) external {
-        if (bountyId >= bountyCounter) revert BountyNotFound();
+    function submitClaimForVote(uint256 bountyId, uint256 claimId) bountyChecks(bountyId) openBountyChecks(bountyId) external {
         if (claimId >= claimCounter) revert ClaimNotFound();
-
         Bounty memory bounty = bounties[bountyId];
-        if (bounty.claimer != address(0)) revert BountyClaimed();
-        if (bounty.claimer == bounty.issuer) revert BountyClosed();
-
-        address[] memory p = participants[bountyId];
-        if (p.length == 0) revert NotOpenBounty();
 
         uint256[] memory amounts = participantAmounts[bountyId];
 
@@ -358,12 +356,8 @@ contract PoidhV2 is
      * @dev Vote on an open bounty
      * @param bountyId the id of the bounty to vote for
      */
-    function voteClaim(uint256 bountyId, bool vote) external {
-        if (bountyId >= bountyCounter) revert BountyNotFound();
-
+    function voteClaim(uint256 bountyId, bool vote) bountyChecks(bountyId) external {
         Bounty memory bounty = bounties[bountyId];
-        if (bounty.claimer != address(0)) revert BountyClaimed();
-        if (bounty.claimer == bounty.issuer) revert BountyClosed();
 
         address[] memory p = participants[bountyId];
         if (p.length == 0) revert NotOpenBounty();
@@ -404,61 +398,25 @@ contract PoidhV2 is
      * @dev Reset the voting period for an open bounty
      * @param bountyId the id of the bounty being claimed
      */
-    function resetVotingPeriod(uint256 bountyId) external {
-        if (bountyId >= bountyCounter) revert BountyNotFound();
-
-        Bounty memory bounty = bounties[bountyId];
-        if (bounty.issuer != msg.sender) revert WrongCaller();
-        if (bounty.claimer != address(0)) revert BountyClaimed();
-        if (bounty.claimer == bounty.issuer) revert BountyClosed();
-
-        address[] memory p = participants[bountyId];
-        if (p.length == 0) revert NotOpenBounty();
+    function resetVotingPeriod(uint256 bountyId) bountyChecks(bountyId) external {
+        if (participants[bountyId].length == 0) revert NotOpenBounty();
 
         uint256 currentClaim = bountyCurrentVotingClaim[bountyId];
         if (currentClaim == 0) revert NoVotingPeriodSet();
 
-        uint256[] memory amounts = participantAmounts[bountyId];
-        uint256 i;
-        uint256 participantAmount;
-
-        do {
-            if (msg.sender == p[i]) {
-                participantAmount = amounts[i];
-                break;
-            }
-
-            ++i;
-        } while (i < p.length);
-
-        if (participantAmount == 0) revert NotActiveParticipant();
-
         Votes storage votingTracker = bountyVotingTracker[bountyId];
-
         if (block.timestamp < votingTracker.deadline) revert VotingOngoing();
 
         bountyCurrentVotingClaim[bountyId] = 0;
-        bountyVotingTracker[bountyId].yes = 0;
-        bountyVotingTracker[bountyId].no = 0;
-        bountyVotingTracker[bountyId].deadline = 0;
+        delete bountyVotingTracker[bountyId];
     }
 
     /**
      * @dev Allow bounty participants to withdraw from a bounty that is not currently being voted on
      * @param bountyId the id of the bounty to withdraw from
      */
-    function withdrawFromOpenBounty(uint256 bountyId) external {
-        if (bountyId >= bountyCounter) revert BountyNotFound();
-
-        Bounty memory bounty = bounties[bountyId];
-        if (bounty.claimer != address(0)) revert BountyClaimed();
-        if (bounty.claimer == bounty.issuer) revert BountyClosed();
-
+    function withdrawFromOpenBounty(uint256 bountyId) bountyChecks(bountyId) openBountyChecks(bountyId) external {
         address[] memory p = participants[bountyId];
-        if (p.length == 0) revert NotOpenBounty();
-
-        if (bountyCurrentVotingClaim[bountyId] > 0) revert VotingOngoing();
-
         uint256[] memory amounts = participantAmounts[bountyId];
         uint256 i;
 
@@ -484,13 +442,10 @@ contract PoidhV2 is
      * @param bountyId the id of the bounty being claimed
      * @param claimId the id of the claim being accepted
      */
-    function acceptClaim(uint256 bountyId, uint256 claimId) public {
-        if (bountyId >= bountyCounter) revert BountyNotFound();
+    function acceptClaim(uint256 bountyId, uint256 claimId) bountyChecks(bountyId) public {
         if (claimId >= claimCounter) revert ClaimNotFound();
 
         Bounty memory bounty = bounties[bountyId];
-        if (bounty.claimer != address(0)) revert BountyClaimed();
-        if (bounty.claimer == bounty.issuer) revert BountyClosed();
         if (bounty.amount > address(this).balance) revert BountyAmountTooHigh();
 
         address claimIssuer = claims[claimId].issuer;
