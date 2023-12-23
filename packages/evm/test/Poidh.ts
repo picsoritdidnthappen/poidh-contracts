@@ -15,7 +15,7 @@ describe('PoidhV2', function () {
     poidhV2Factory = await ethers.getContractFactory('PoidhV2');
     poidhV2 = (await poidhV2Factory.deploy(
       owner.address,
-      1000, // fee numerator
+      owner.address,
     )) as Contract;
   });
 

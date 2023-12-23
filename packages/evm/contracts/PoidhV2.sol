@@ -152,8 +152,9 @@ contract PoidhV2 {
         _;
     }
 
-    constructor(address _poidhV2Nft) {
+    constructor(address _poidhV2Nft, address _treasury) {
         poidhV2Nft = PoidhV2Nft(_poidhV2Nft);
+        treasury = _treasury;
     }
 
     /** Create Solo Bounty */
@@ -572,18 +573,31 @@ contract PoidhV2 {
         @param user the address of the user to fetch bounties for
     */
     function getBountiesByUser(
-        address user
-    ) public view returns (Bounty[] memory) {
-        uint256[] storage userBountyIndexes = userBounties[user];
-        Bounty[] memory userBountiesArray = new Bounty[](
-            userBountyIndexes.length
-        );
+        address user,
+        uint256 offset
+    ) public view returns (ViewBounty[10] memory result) {
+        uint256[] memory bountyIds = userBounties[user];
 
-        for (uint256 i = 0; i < userBountyIndexes.length; i++) {
-            userBountiesArray[i] = bounties[userBountyIndexes[i]];
+        for (uint i = 0; i < 10; i++) {
+            Bounty storage b = bounties[bountyIds[offset + i]];
+            Votes storage v = bountyVotingTracker[b.id];
+
+            result[i] = ViewBounty({
+                id: b.id,
+                issuer: b.issuer,
+                name: b.name,
+                description: b.description,
+                amount: b.amount,
+                claimer: b.claimer,
+                createdAt: b.createdAt,
+                claimId: b.claimId,
+                participants: participants[b.id],
+                participantAmounts: participantAmounts[b.id],
+                yesVotes: v.yes,
+                noVotes: v.no,
+                deadline: v.deadline
+            });
         }
-
-        return userBountiesArray;
     }
 
     /** get claims by user */
