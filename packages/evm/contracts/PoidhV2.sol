@@ -106,6 +106,7 @@ contract PoidhV2 is
     error NoVotingPeriodSet();
     error NotActiveParticipant();
     error BountyAmountTooHigh();
+    error IssuerCannotWithdraw();
 
     /** modifiers */
     /** @dev
@@ -424,6 +425,8 @@ contract PoidhV2 is
     function withdrawFromOpenBounty(
         uint256 bountyId
     ) external bountyChecks(bountyId) openBountyChecks(bountyId) {
+        Bounty memory bounty = bounties[bountyId];
+        if (bounty.issuer == msg.sender) revert IssuerCannotWithdraw();
         address[] memory p = participants[bountyId];
         uint256[] memory amounts = participantAmounts[bountyId];
         uint256 i;
