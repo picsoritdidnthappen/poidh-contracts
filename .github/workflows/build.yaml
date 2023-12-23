@@ -1,0 +1,140 @@
+name: Build
+'on':
+  push:
+    branches:
+      - main
+  pull_request:
+env:
+  solana_version: stable
+jobs:
+  install:
+    name: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        name: cache solana cli
+        id: cache-solana-cli
+        with:
+          path: |
+            ~/.cache/solana/
+            ~/.local/share/solana/
+          key: '${{ runner.os }}-solana-${{ env.solana_version }}'
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      - name: Cache node dependencies
+        uses: actions/cache@v3
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**yarn.lock') }}
+      - name: Install dependencies
+        run: |
+          export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
+          yarn --frozen-lockfile --network-concurrency 2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: cache rust dependencies
+        uses: Swatinem/rust-cache@v2
+      - name: Install essentials
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config build-essential libudev-dev
+      - name: Install solana cli
+        if: steps.cache-solana-cli.outputs.cache-hit != 'true'
+        run: |
+          sh -c "$(curl -sSfL https://release.solana.com/${{ env.solana_version }}/install)"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          solana --version
+
+  lint-program:
+    needs: install
+    name: lint-program
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Cache rust
+        uses: Swatinem/rust-cache@v2
+      - name: Run rust fmt
+        run: cargo fmt -- --check
+      - name: Run rust clippy
+        run: cargo clippy -- --deny=warnings
+
+  lint-workspaces:
+    needs:
+      - install
+    name: lint-workspaces
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**yarn.lock') }}
+      - name: build app
+        run: yarn app:build
+      - name: Lint workspaces
+        run: yarn lint
+      - name: compile contracts
+        run: yarn evm:compile   
+
+  test-hardhat:
+    needs:
+      - install
+      - lint-workspaces
+    name: test-hardhat
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**yarn.lock') }}
+      - name: Test hardhat
+        run: yarn evm:test
+
+  test-anchor:
+    needs:
+      - install
+      - lint-program
+    runs-on: ubuntu-latest
+    name: test-anchor
+    steps:
+    - uses: actions/checkout@v3
+  
+    - name: Cache node modules
+      uses: actions/cache@v3
+      with:
+        path: '**/node_modules'
+        key: ${{ runner.os }}-modules-${{ hashFiles('**yarn.lock') }}  
+  
+    - uses: actions/cache@v3 
+      name: Cache solana cli
+      id: cache-solana-cli
+      with:
+        path: |  
+          ~/.cache/solana/
+          ~/.local/share/solana/
+        key: ${{ runner.os }}-solana-${{ env.solana_version }}
+  
+    - name: Set up Solana
+      run: |
+        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"  
+        solana-keygen new --silent --no-bip39-passphrase
+  
+    - name: Run Solana tests
+      run: |
+        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+        yarn add -D -W @coral-xyz/anchor-cli
+        yarn anchor:test
+  
+    - uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: program-logs
+        path: .anchor/program-logs/*
+
+
