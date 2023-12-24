@@ -40,10 +40,7 @@ contract PoidhV2Nft is
         poidh = _poidhV2;
     }
 
-    function mint(
-        address to,
-        uint256 claimCounter
-    ) external {
+    function mint(address to, uint256 claimCounter) external {
         if (msg.sender != poidh) {
             revert('only poidh can mint');
         }

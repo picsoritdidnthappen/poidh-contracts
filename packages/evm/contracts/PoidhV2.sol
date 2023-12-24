@@ -51,6 +51,7 @@ contract PoidhV2 {
         string name;
         string description;
         uint256 createdAt;
+        bool accepted;
     }
 
     struct Votes {
@@ -326,7 +327,8 @@ contract PoidhV2 {
             bounty.issuer,
             name,
             description, // new field
-            block.timestamp
+            block.timestamp,
+            false
         );
 
         claims.push(claim);
@@ -482,6 +484,9 @@ contract PoidhV2 {
         // Close out the bounty
         bounties[bountyId].claimer = claimIssuer;
         bounties[bountyId].claimId = claimId;
+
+        Claim storage claim = claims[claimId];
+        claim.accepted = true;
 
         // Calculate the fee (2.5% of bountyAmount)
         uint256 fee = (bountyAmount * 25) / 1000;
