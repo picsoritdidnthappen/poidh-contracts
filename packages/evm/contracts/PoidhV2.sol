@@ -67,8 +67,8 @@ contract PoidhV2 {
 
     address public immutable treasury;
 
-    uint256 public bountyCounter = 1;
-    uint256 public claimCounter = 1;
+    uint256 public bountyCounter = 0;
+    uint256 public claimCounter = 0;
 
     uint256 public votingPeriod = 2 days;
 
@@ -113,6 +113,13 @@ contract PoidhV2 {
     event BountyJoined(uint256 bountyId, address participant, uint256 amount);
     event ClaimSubmittedForVote(uint256 bountyId, uint256 claimId);
     event BountyCancelled(uint256 bountyId, address issuer);
+    event ResetVotingPeriod(uint256 bountyId);
+    event VoteClaim(address voter, uint256 bountyId, uint256 claimId);
+    event WithdrawFromOpenBounty(
+        uint256 bountyId,
+        address participant,
+        uint256 amount
+    );
 
     /** Errors */
     error NoEther();
@@ -301,6 +308,8 @@ contract PoidhV2 {
         } while (i < p.length);
 
         bounties[bountyId].claimer = msg.sender;
+
+        emit BountyCancelled(bountyId, bounty.issuer);
     }
 
     /**
@@ -414,6 +423,8 @@ contract PoidhV2 {
         } else {
             bountyVotingTracker[bountyId].no += participantAmount;
         }
+
+        emit VoteClaim(msg.sender, bountyId, currentClaim);
     }
 
     /**
@@ -433,6 +444,8 @@ contract PoidhV2 {
 
         bountyCurrentVotingClaim[bountyId] = 0;
         delete bountyVotingTracker[bountyId];
+
+        emit ResetVotingPeriod(bountyId);
     }
 
     /**
@@ -457,6 +470,8 @@ contract PoidhV2 {
 
                 (bool success, ) = p[i].call{value: amount}('');
                 if (!success) revert transferFailed();
+
+                emit WithdrawFromOpenBounty(bountyId, msg.sender, amount);
 
                 break;
             }

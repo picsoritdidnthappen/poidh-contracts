@@ -42,3 +42,87 @@ export const createOpenBounty = async (
     }),
   ).to.emit(poidhV2, 'BountyCreated');
 };
+
+export const cancelSoloBounty = async (poidhV2: Contract, bountyId: string) => {
+  await expect(poidhV2.cancelSoloBounty(bountyId)).to.emit(
+    poidhV2,
+    'BountyCancelled',
+  );
+};
+
+export const cancelOpenBounty = async (poidhV2: Contract, bountyId: string) => {
+  await expect(poidhV2.cancelOpenBounty(bountyId)).to.emit(
+    poidhV2,
+    'BountyCancelled',
+  );
+};
+
+export const joinOpenBounty = async (poidhV2: Contract, bountyId: string) => {
+  await expect(poidhV2.joinOpenBounty(bountyId)).to.emit(
+    poidhV2,
+    'BountyJoined',
+  );
+};
+
+export const createClaim = async (
+  poidhV2: Contract,
+  bountyId: string,
+  name: string,
+  uri: string,
+  description: string,
+) => {
+  await expect(poidhV2.createClaim(bountyId, name, uri, description)).to.emit(
+    poidhV2,
+    'ClaimCreated',
+  );
+};
+
+export const submitClaimForVote = async (
+  poidhV2: Contract,
+  bountyId: string,
+  claimId: string,
+) => {
+  await expect(poidhV2.submitClaimForVote(bountyId, claimId)).to.emit(
+    poidhV2,
+    'ClaimSubmittedForVote',
+  );
+};
+
+export const voteClaim = async (
+  poidhV2: Contract,
+  bountyId: string,
+  vote: boolean,
+) => {
+  await expect(poidhV2.voteClaim(bountyId, vote)).to.emit(poidhV2, 'VoteClaim');
+};
+
+export const resetVotingPeriod = async (
+  poidhV2: Contract,
+  bountyId: string,
+) => {
+  await expect(poidhV2.resetVotingPeriod(bountyId)).to.emit(
+    poidhV2,
+    'VotingPeriodReset',
+  );
+};
+
+export const withdrawFromOpenBounty = async (
+  poidhV2: Contract,
+  bountyId: string,
+) => {
+  await expect(poidhV2.withdrawFromOpenBounty(bountyId)).to.emit(
+    poidhV2,
+    'WithdrawFromOpenBounty',
+  );
+};
+
+export const acceptClaim = async (
+  poidhV2: Contract,
+  bountyId: string,
+  claimId: string,
+) => {
+  await expect(poidhV2.acceptClaim(bountyId, claimId)).to.emit(
+    poidhV2,
+    'ClaimAccepted',
+  );
+};
