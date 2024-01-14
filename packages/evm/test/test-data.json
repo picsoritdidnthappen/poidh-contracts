@@ -1,0 +1,14 @@
+{
+  "bounties": [
+    {
+      "name": "Bounty 1",
+      "description": "This is the first bounty",
+      "amount": "1"
+    },
+    {
+      "name": "Bounty 2",
+      "description": "This is the second bounty",
+      "amount": "10"
+    }
+  ]
+}

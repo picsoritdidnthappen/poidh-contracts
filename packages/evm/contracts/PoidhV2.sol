@@ -2,6 +2,7 @@
 pragma solidity 0.8.23;
 
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
+import 'hardhat/console.sol';
 
 interface PoidhV2Nft is IERC721 {
     function setTokenURI(uint256 tokenId, string memory _tokenURI) external;
@@ -527,9 +528,12 @@ contract PoidhV2 {
     function getBounties(
         uint offset
     ) public view returns (ViewBounty[10] memory result) {
-        require(offset + 10 <= bounties.length, 'End index out of bounds');
+        uint256 length = bounties.length;
+        if (length > 10) {
+            length = 10;
+        }
 
-        for (uint i = 0; i < 10; i++) {
+        for (uint i = offset; i < length; i++) {
             Bounty storage bounty = bounties[offset + i];
 
             Votes storage vote = bountyVotingTracker[bounty.id];
