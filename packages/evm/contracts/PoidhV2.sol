@@ -149,8 +149,8 @@ contract PoidhV2 {
     modifier bountyChecks(uint256 bountyId) {
         if (bountyId >= bountyCounter) revert BountyNotFound();
         Bounty memory bounty = bounties[bountyId];
-        if (bounty.claimer != address(0)) revert BountyClaimed();
         if (bounty.claimer == bounty.issuer) revert BountyClosed();
+        if (bounty.claimer != address(0)) revert BountyClaimed();
         _;
     }
 
@@ -250,6 +250,16 @@ contract PoidhV2 {
         uint256 bountyId
     ) external payable bountyChecks(bountyId) openBountyChecks(bountyId) {
         if (msg.value == 0) revert NoEther();
+
+        address[] memory p = participants[bountyId];
+
+        uint256 i;
+        do {
+            if (msg.sender == p[i]) {
+                revert WrongCaller();
+            }
+            ++i;
+        } while (p.length > i);
 
         Bounty memory bounty = bounties[bountyId];
 

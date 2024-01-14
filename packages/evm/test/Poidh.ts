@@ -7,6 +7,7 @@ import {
   createSoloBounty,
   createOpenBounty,
   cancelSoloBounty,
+  joinOpenBounty,
 } from './utils';
 import * as testData from './test-data.json';
 
@@ -107,6 +108,51 @@ describe('PoidhV2', function () {
       await cancelSoloBounty(poidhV2, '0');
       const balanceAfter = await ethers.provider.getBalance(owner.address);
       expect(balanceAfter - balanceBefore).to.be.approximately(
+        ethers.parseEther('1'),
+        ethers.parseEther('0.1'),
+      );
+    });
+
+    it('should revert if the bounty is already canceled', async function () {
+      await expect(
+        cancelSoloBounty(poidhV2, '0'),
+      ).to.be.revertedWithCustomError(poidhV2, 'BountyClosed()');
+    });
+  });
+
+  describe('Join Open Bounties', function () {
+    it('should revert if the bounty does not exist', async function () {
+      await expect(poidhV2.joinOpenBounty('10')).to.be.revertedWithCustomError(
+        poidhV2,
+        'BountyNotFound()',
+      );
+    });
+
+    it('should revert if no ether is sent', async function () {
+      await expect(poidhV2.joinOpenBounty('1')).to.be.revertedWithCustomError(
+        poidhV2,
+        'NoEther()',
+      );
+    });
+
+    it('should revert if the bounty is a solo bounty', async function () {
+      await createSoloBounty(poidhV2, 'Bounty', 'Description', '1');
+      await expect(
+        poidhV2.joinOpenBounty('2', { value: ethers.parseEther('1') }),
+      ).to.be.revertedWithCustomError(poidhV2, 'NotOpenBounty()');
+    });
+
+    it('should revert if user already joined, or is issuer', async function () {
+      await expect(
+        poidhV2.joinOpenBounty('1', { value: ethers.parseEther('1') }),
+      ).to.be.revertedWithCustomError(poidhV2, 'WrongCaller()');
+    });
+
+    it('should allow joining a bounty', async function () {
+      const balanceBefore = await ethers.provider.getBalance(alice.address);
+      await joinOpenBounty(poidhV2.connect(alice) as Contract, '1', '1');
+      const balanceAfter = await ethers.provider.getBalance(alice.address);
+      expect(balanceBefore - balanceAfter).to.be.approximately(
         ethers.parseEther('1'),
         ethers.parseEther('0.1'),
       );

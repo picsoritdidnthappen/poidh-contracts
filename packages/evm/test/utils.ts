@@ -57,11 +57,16 @@ export const cancelOpenBounty = async (poidhV2: Contract, bountyId: string) => {
   );
 };
 
-export const joinOpenBounty = async (poidhV2: Contract, bountyId: string) => {
-  await expect(poidhV2.joinOpenBounty(bountyId)).to.emit(
-    poidhV2,
-    'BountyJoined',
-  );
+export const joinOpenBounty = async (
+  poidhV2: Contract,
+  bountyId: string,
+  amount: string,
+) => {
+  await expect(
+    poidhV2.joinOpenBounty(bountyId, {
+      value: ethers.parseEther(amount),
+    }),
+  ).to.emit(poidhV2, 'BountyJoined');
 };
 
 export const createClaim = async (
