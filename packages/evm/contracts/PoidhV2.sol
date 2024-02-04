@@ -2,11 +2,11 @@
 pragma solidity 0.8.23;
 
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
+import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 import 'hardhat/console.sol';
 
-interface PoidhV2Nft is IERC721 {
-    function setTokenURI(uint256 tokenId, string memory _tokenURI) external;
-    function mint(address to, uint256 claimCounter) external;
+interface IPoidhV2Nft is IERC721, IERC721Receiver {
+    function mint(address to, uint256 claimCounter, string memory uri) external;
     function safeTransfer(
         address from,
         address to,
@@ -74,7 +74,7 @@ contract PoidhV2 {
 
     address public immutable poidhAuthority;
     bool public poidhV2NftSet = false;
-    PoidhV2Nft public immutable poidhV2Nft;
+    IPoidhV2Nft public immutable poidhV2Nft;
 
     /** mappings */
     mapping(address => uint256[]) public userBounties;
@@ -162,7 +162,7 @@ contract PoidhV2 {
     }
 
     constructor(address _poidhV2Nft, address _treasury) {
-        poidhV2Nft = PoidhV2Nft(_poidhV2Nft);
+        poidhV2Nft = IPoidhV2Nft(_poidhV2Nft);
         treasury = _treasury;
     }
 
@@ -355,8 +355,9 @@ contract PoidhV2 {
         userClaims[msg.sender].push(claimId);
         bountyClaims[bountyId].push(claimId);
 
-        poidhV2Nft.mint(address(this), claimId);
-        poidhV2Nft.setTokenURI(claimId, uri);
+        poidhV2Nft.mint(address(this), claimId, uri);
+
+        claimCounter++;
 
         emit ClaimCreated(
             claimId,
@@ -650,5 +651,14 @@ contract PoidhV2 {
         }
 
         return userClaimsArray;
+    }
+
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes calldata
+    ) external pure returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
     }
 }

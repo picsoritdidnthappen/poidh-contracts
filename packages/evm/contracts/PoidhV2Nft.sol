@@ -6,6 +6,7 @@ import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol';
+import 'hardhat/console.sol';
 
 contract PoidhV2Nft is
     ERC721,
@@ -38,15 +39,20 @@ contract PoidhV2Nft is
             'only poidhV2Authority can set poidhV2'
         );
         poidh = _poidhV2;
+        setApprovalForAll(poidh, true);
     }
 
-    function mint(address to, uint256 claimCounter) external {
+    function mint(
+        address to,
+        uint256 claimCounter,
+        string memory uri
+    ) external {
         if (msg.sender != poidh) {
             revert('only poidh can mint');
         }
 
-        _mint(to, claimCounter);
-        ++claimCounter;
+        _safeMint(to, claimCounter);
+        _setTokenURI(claimCounter, uri);
     }
 
     /** get claims by bounty */
