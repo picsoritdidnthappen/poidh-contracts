@@ -1,4 +1,4 @@
-# POIDH Monorepo
+# POIDH SOL Program | EVM Contracts
 
 ## Development instructions
 
