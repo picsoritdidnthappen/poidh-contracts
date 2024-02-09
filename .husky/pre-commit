@@ -2,7 +2,6 @@
 . "$(dirname -- "$0")/_/husky.sh"
 
 yarn lint
-yarn app:build
 yarn evm:compile
 yarn format
 yarn anchor:test
