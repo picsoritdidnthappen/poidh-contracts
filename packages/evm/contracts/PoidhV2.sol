@@ -3,7 +3,6 @@ pragma solidity 0.8.23;
 
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
-import 'hardhat/console.sol';
 
 interface IPoidhV2Nft is IERC721, IERC721Receiver {
     function mint(address to, uint256 claimCounter, string memory uri) external;
@@ -420,15 +419,13 @@ contract PoidhV2 {
         if (participantAmount == 0) revert NotActiveParticipant();
 
         Votes memory votingTracker = bountyVotingTracker[bountyId];
-
         if (vote) {
             if (
                 votingTracker.yes + participantAmount >
-                (votingTracker.yes + votingTracker.no) / 2
+                (votingTracker.yes + participantAmount + votingTracker.no) / 2
             ) {
                 // accept claim and close out bounty
                 acceptClaim(bountyId, currentClaim);
-                return;
             }
             bountyVotingTracker[bountyId].yes += participantAmount;
         } else {
@@ -512,8 +509,7 @@ contract PoidhV2 {
         bounties[bountyId].claimer = claimIssuer;
         bounties[bountyId].claimId = claimId;
 
-        Claim storage claim = claims[claimId];
-        claim.accepted = true;
+        claims[claimId].accepted = true;
 
         // Calculate the fee (2.5% of bountyAmount)
         uint256 fee = (bountyAmount * 25) / 1000;
@@ -544,6 +540,12 @@ contract PoidhV2 {
     /** Getter for the length of the bounties array */
     function getBountiesLength() public view returns (uint256) {
         return bounties.length;
+    }
+
+    function getBounty(
+        uint256 bountyId
+    ) public view returns (Bounty memory) {
+        return bounties[bountyId];
     }
 
     /**

@@ -55,6 +55,15 @@ contract PoidhV2Nft is
         _setTokenURI(claimCounter, uri);
     }
 
+    function safeTransfer(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory data
+    ) public {
+        _safeTransfer(from, to, tokenId, data);
+    }
+
     /** get claims by bounty */
     function tokenURI(
         uint256 tokenId

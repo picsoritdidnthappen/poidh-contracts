@@ -4,6 +4,7 @@ import {
   createOpenBounty,
   joinOpenBounty,
   submitClaimForVote,
+  voteClaim,
 } from './utils';
 import * as testData from './test-data.json';
 import { Contract, ContractFactory } from 'ethers';
@@ -135,5 +136,25 @@ describe('Open Bounty Simulation', function () {
       100,
     );
     expect(bountyAfterSubmitClaim.yesVotes).to.equal(ethers.parseEther('1'));
+
+    // 2 votes, 1 yes, 1 no
+    await voteClaim(poidhV2.connect(signers[1]) as Contract, '0', false);
+
+    await wait(1000);
+
+    await voteClaim(poidhV2.connect(signers[2]) as Contract, '0', true);
+
+    await wait(1000);
+
+    const bountyAfterVotes = await poidhV2
+      .getBounties(0)
+      .then((b: ViewBounty[]) =>
+        b.filter((x: ViewBounty) => x.issuer !== ethers.ZeroAddress),
+      )
+      .then((x: ViewBounty[]) => x[0]);
+
+    // expect(bountyAfterVotes.noVotes).to.equal(ethers.parseEther('1'));
+    expect(bountyAfterVotes.claimer).to.equal(signers[2].address);
+    expect(bountyAfterVotes.claimId).to.equal(1);
   });
 });
