@@ -542,9 +542,7 @@ contract PoidhV2 {
         return bounties.length;
     }
 
-    function getBounty(
-        uint256 bountyId
-    ) public view returns (Bounty memory) {
+    function getBounty(uint256 bountyId) public view returns (Bounty memory) {
         return bounties[bountyId];
     }
 
@@ -562,7 +560,7 @@ contract PoidhV2 {
         }
 
         for (uint i = offset; i < length; i++) {
-            Bounty storage bounty = bounties[offset + i];
+            Bounty storage bounty = bounties[i];
 
             Votes storage vote = bountyVotingTracker[bounty.id];
 

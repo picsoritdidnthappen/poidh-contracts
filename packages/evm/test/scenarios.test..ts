@@ -1,10 +1,12 @@
 // open bounty with x participants
 import {
+  cancelOpenBounty,
   createClaim,
   createOpenBounty,
   joinOpenBounty,
   submitClaimForVote,
   voteClaim,
+  withdrawFromOpenBounty,
 } from './utils';
 import * as testData from './test-data.json';
 import { Contract, ContractFactory } from 'ethers';
@@ -32,6 +34,17 @@ interface ViewBounty {
   yesVotes: bigint;
   noVotes: bigint;
   deadline: bigint;
+}
+
+interface Claim {
+  id: number;
+  issuer: string;
+  bountyId: number;
+  bountyIssuer: string;
+  name: string;
+  description: string;
+  createdAt: number;
+  accepted: boolean;
 }
 
 describe('Open Bounty Simulation', function () {
@@ -76,7 +89,7 @@ describe('Open Bounty Simulation', function () {
     const signers = await ethers.getSigners();
 
     await signers.forEach(async (signer, index) => {
-      if (index === 0) return;
+      if (index === 0 || index > 5) return;
       const claim = claims[index - 1];
 
       await createClaim(
@@ -94,8 +107,7 @@ describe('Open Bounty Simulation', function () {
     expect(claimCounter).to.equal(3);
 
     await signers.forEach(async (signer, index) => {
-      if (index === 0) return;
-      if (index > 5) return;
+      if (index === 0 || index > 5) return;
       await joinOpenBounty(
         poidhV2.connect(signer) as Contract,
         '0',
@@ -153,8 +165,78 @@ describe('Open Bounty Simulation', function () {
       )
       .then((x: ViewBounty[]) => x[0]);
 
-    // expect(bountyAfterVotes.noVotes).to.equal(ethers.parseEther('1'));
     expect(bountyAfterVotes.claimer).to.equal(signers[2].address);
     expect(bountyAfterVotes.claimId).to.equal(1);
+
+    const c: Claim[] = await poidhV2.getClaimsByBountyId(0);
+    expect(c[1].accepted).to.equal(true);
+
+    const balance = await poidhV2Nft.balanceOf(signers[2].address);
+    expect(balance).to.equal(1);
+  });
+  it('Can withdraw from a public bounty', async function () {
+    const bounty = testData.bounties[1];
+    const claims = testData.bounties[1].claims;
+    if (!claims) throw new Error('No claims found in test data');
+
+    await createOpenBounty(
+      poidhV2,
+      bounty.name,
+      bounty.description,
+      bounty.amount,
+    );
+
+    const bountiesLength = await poidhV2.getBountiesLength();
+    expect(bountiesLength).to.equal(2);
+
+    const signers = await ethers.getSigners();
+
+    await signers.forEach(async (signer, index) => {
+      if (index === 0 || index > 5) return;
+      await joinOpenBounty(
+        poidhV2.connect(signer) as Contract,
+        '1',
+        bounty.participants![index - 1].amount,
+      );
+    });
+
+    await wait(1000);
+
+    const b: ViewBounty = await poidhV2
+      .getBounties(1)
+      .then((b: ViewBounty[]) =>
+        b.filter((x: ViewBounty) => x.issuer !== ethers.ZeroAddress),
+      )
+      .then((x: ViewBounty[]) => x[0]);
+
+    expect(b.participants.length).to.equal(6);
+    expect(b.participantAmounts.length).to.equal(6);
+
+    await withdrawFromOpenBounty(poidhV2.connect(signers[2]) as Contract, '1');
+
+    await wait(1000);
+
+    const bAfterWithdraw = await poidhV2
+      .getBounties(1)
+      .then((b: ViewBounty[]) =>
+        b.filter((x: ViewBounty) => x.issuer !== ethers.ZeroAddress),
+      )
+      .then((x: ViewBounty[]) => x[0]);
+
+    expect(bAfterWithdraw.participants).to.include(ethers.ZeroAddress);
+  });
+  it("Can cancel an open bounty and refund participants", async function () {
+    const signers = await ethers.getSigners();
+
+    await cancelOpenBounty(poidhV2, '1');
+
+    const bAfterCancel = await poidhV2
+      .getBounties(1)
+      .then((b: ViewBounty[]) =>
+        b.filter((x: ViewBounty) => x.issuer !== ethers.ZeroAddress),
+      )
+      .then((x: ViewBounty[]) => x[0]);
+
+    expect(bAfterCancel.claimer).to.equal(signers[0].address);
   });
 });
