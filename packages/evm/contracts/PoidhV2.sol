@@ -70,8 +70,6 @@ contract PoidhV2 {
     uint256 public claimCounter = 0;
 
     uint256 public votingPeriod = 2 days;
-
-    address public immutable poidhAuthority;
     bool public poidhV2NftSet = false;
     IPoidhV2Nft public immutable poidhV2Nft;
 
