@@ -24,14 +24,7 @@ const ConnectWallet = () => {
     } 
   = useDynamicContext();
 
-  // const handleConnect = async () => {
-  //   if (walletConnector?.supportsNetworkSwitching()) {
-  //     await walletConnector?.switchNetwork({ networkChainId: 137 });
-  //     console.log("Success! Network switched");
-  //   }
-  // };
 
-  // console.log('isAuthenticated: ' + isAuthenticated )
 
 
   return (
