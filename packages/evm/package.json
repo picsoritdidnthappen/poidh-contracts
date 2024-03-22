@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "compile": "hardhat compile",
-    "evm:test": "run evm:test",
+    "test": "hardhat test",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write \"**/*.{js,ts,json,md}\" && prettier --write --plugin=prettier-plugin-solidity 'contracts/**/*.sol'"
   },
