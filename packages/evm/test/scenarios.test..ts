@@ -225,7 +225,7 @@ describe('Open Bounty Simulation', function () {
 
     expect(bAfterWithdraw.participants).to.include(ethers.ZeroAddress);
   });
-  it("Can cancel an open bounty and refund participants", async function () {
+  it('Can cancel an open bounty and refund participants', async function () {
     const signers = await ethers.getSigners();
 
     await cancelOpenBounty(poidhV2, '1');
