@@ -553,13 +553,11 @@ contract PoidhV2 {
         uint offset
     ) public view returns (ViewBounty[10] memory result) {
         uint256 length = bounties.length;
-        if (length > 10) {
-            length = 10;
-        }
+        uint256 remaining = length - offset;
+        uint256 numBounties = remaining < 10 ? remaining : 10;
 
-        for (uint i = offset; i < length; i++) {
-            Bounty storage bounty = bounties[i];
-
+        for (uint i = 0; i < numBounties; i++) {
+            Bounty storage bounty = bounties[offset + i];
             Votes storage vote = bountyVotingTracker[bounty.id];
 
             result[i] = ViewBounty({
@@ -610,8 +608,11 @@ contract PoidhV2 {
         uint256 offset
     ) public view returns (ViewBounty[10] memory result) {
         uint256[] memory bountyIds = userBounties[user];
+        uint256 length = bountyIds.length;
+        uint256 remaining = length - offset;
+        uint256 numBounties = remaining < 10 ? remaining : 10;
 
-        for (uint i = 0; i < 10; i++) {
+        for (uint i = 0; i < numBounties; i++) {
             Bounty storage b = bounties[bountyIds[offset + i]];
             Votes storage v = bountyVotingTracker[b.id];
 
