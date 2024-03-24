@@ -6,7 +6,10 @@ import {
   createMint,
   createAssociatedTokenAccount,
   mintTo,
+  getAccount,
+  getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
+import { Keypair } from "@solana/web3.js";
 
 describe("poidh", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -24,7 +27,7 @@ describe("poidh", () => {
       9
     );
 
-    const tokenAccount = await createAssociatedTokenAccount(
+    const userTokenAccount = await createAssociatedTokenAccount(
       program.provider.connection,
       authority,
       mint,
@@ -35,7 +38,7 @@ describe("poidh", () => {
       program.provider.connection,
       authority,
       mint,
-      tokenAccount,
+      userTokenAccount,
       program.provider.publicKey,
       1_000_000_000
     );
@@ -51,19 +54,35 @@ describe("poidh", () => {
       voteType: 0,
     };
 
+    const id = Keypair.generate().publicKey;
+
+    const bounty = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("bounty"), authority.publicKey.toBytes(), id.toBytes()],
+      program.programId
+    )[0];
+
+    const bountyAta = getAssociatedTokenAddressSync(mint, bounty, true);
+
     await program.methods
       .createBounty(createBountyParams)
       .accounts({
-        authority: program.provider.publicKey,
-        bounty: bountyPublicKey,
-        mint: mint,
-        tokenAccount: tokenAccount,
+        authority: authority.publicKey,
+        bounty: bounty,
+        mint: id,
+        paymentMint: mint,
+        userTokenAccount,
+        bountyAta,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
-      .signers([bountyKeypair])
-      .rpc();
+      .rpc({ skipPreflight: true });
 
-    const bountyAccount = await program.account.bounty.fetch(bountyPublicKey);
+    const bountyAccount = await program.account.bounty.fetch(bounty);
+    const bountyAtaAccount = await getAccount(
+      program.provider.connection,
+      bountyAta
+    );
 
     expect(bountyAccount.authority.toString()).equal(
       program.provider.publicKey.toString()
@@ -75,10 +94,12 @@ describe("poidh", () => {
     );
     expect(bountyAccount.bountyType).equal(createBountyParams.bountyType);
     expect(bountyAccount.voteType).equal(createBountyParams.voteType);
+    expect(Number(bountyAtaAccount.amount.toString())).equal(
+      createBountyParams.amount.toNumber()
+    );
 
     // Check if the authority is added as a participant for an open bounty
     if (createBountyParams.bountyType === 1) {
-      console.log("here");
       expect(bountyAccount.participants.length).equal(1);
       expect(bountyAccount.participants[0].address.toString()).equal(
         program.provider.publicKey.toString()
