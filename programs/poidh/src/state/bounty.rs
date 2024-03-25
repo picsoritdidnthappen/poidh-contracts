@@ -1,3 +1,4 @@
+use crate::error::ErrorCode;
 use anchor_lang::prelude::*;
 
 const MAX_NAME_LENGTH: usize = 20;
@@ -169,6 +170,69 @@ impl Bounty {
             if participant.amount != 0 {
                 return Err(ProgramError::InvalidAccountData.into());
             }
+        }
+
+        Ok(())
+    }
+
+    pub fn add_participant(&mut self, participant: Pubkey, amount: u64) -> Result<()> {
+        if self.bounty_type != BountyType::Open as u8 {
+            return Err(ProgramError::InvalidInstructionData.into());
+        }
+
+        if self.participants.len() >= MAX_PARTICPANTS {
+            return Err(ProgramError::AccountDataTooSmall.into());
+        }
+
+        self.participants.push(Participant {
+            address: participant,
+            amount,
+        });
+
+        Ok(())
+    }
+
+    pub fn increase_participant_shares(&mut self, participant: Pubkey, amount: u64) -> Result<()> {
+        if amount == 0 {
+            return Err(ProgramError::InvalidInstructionData.into());
+        }
+
+        let participant_index = self
+            .participants
+            .iter()
+            .position(|p| p.address == participant)
+            .ok_or(ErrorCode::ParticipantDoesNotExist)?;
+
+        let participant = &mut self.participants[participant_index];
+
+        participant.amount = participant
+            .amount
+            .checked_add(amount)
+            .ok_or(ErrorCode::ArithmeticOverflow)?;
+
+        Ok(())
+    }
+
+    pub fn decrease_participant_shares(&mut self, participant: Pubkey, amount: u64) -> Result<()> {
+        let participant_index = self
+            .participants
+            .iter()
+            .position(|p| p.address == participant)
+            .ok_or(ErrorCode::ParticipantDoesNotExist)?;
+
+        let participant_shares = &mut self.participants[participant_index];
+
+        if amount > participant_shares.amount {
+            return Err(ErrorCode::InsufficientShares.into());
+        }
+
+        participant_shares.amount = participant_shares
+            .amount
+            .checked_sub(amount)
+            .ok_or(ErrorCode::ArithmeticUnderflow)?;
+
+        if participant_shares.amount == 0 {
+            self.participants.remove(participant_index);
         }
 
         Ok(())

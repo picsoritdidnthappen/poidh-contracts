@@ -68,9 +68,6 @@ pub fn create_bounty(ctx: Context<CreateBounty>, args: CreateBountyParams) -> Re
     bounty.validate_vote_type(vote_type);
 
     let created_at = Clock::get()?.unix_timestamp;
-
-    token::transfer(ctx.accounts.transfer_ctx(), amount)?;
-
     let bounty = &mut ctx.accounts.bounty;
 
     **bounty = Bounty::new(
@@ -85,6 +82,8 @@ pub fn create_bounty(ctx: Context<CreateBounty>, args: CreateBountyParams) -> Re
         vote_type,
         ctx.bumps.bounty,
     );
+
+    token::transfer(ctx.accounts.transfer_ctx(), amount)?;
 
     Ok(())
 }

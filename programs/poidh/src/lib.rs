@@ -2,6 +2,7 @@
 #![allow(clippy::new_ret_no_self)]
 use anchor_lang::prelude::*;
 
+pub mod error;
 pub mod instructions;
 pub mod state;
 
@@ -20,5 +21,9 @@ pub mod poidh {
 
     pub fn close_bounty(ctx: Context<CloseBounty>) -> Result<()> {
         instructions::close_bounty(ctx)
+    }
+
+    pub fn join_bounty(ctx: Context<JoinBounty>, amount: u64) -> Result<()> {
+        instructions::join_bounty(ctx, amount)
     }
 }
