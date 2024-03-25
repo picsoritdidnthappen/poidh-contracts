@@ -84,6 +84,7 @@ pub struct Bounty {
     pub participants: Vec<Participant>,
     pub bounty_type: u8,
     pub vote_type: u8,
+    pub bump: [u8; 1],
 }
 
 impl Bounty {
@@ -112,6 +113,7 @@ impl Bounty {
         created_at: i64,
         bounty_type: u8,
         vote_type: u8,
+        bump: u8,
     ) -> Self {
         let mut bounty = Bounty {
             authority,
@@ -131,6 +133,7 @@ impl Bounty {
             participants: vec![],
             bounty_type,
             vote_type,
+            bump: [bump],
         };
 
         // If the bounty type is Open, add the authority and amount as a participant
@@ -144,11 +147,12 @@ impl Bounty {
         bounty
     }
 
-    pub fn as_seeds(&self) -> [&[u8]; 3] {
+    pub fn as_seeds(&self) -> [&[u8]; 4] {
         [
             "bounty".as_bytes(),
             self.authority.as_ref(),
             self.mint.as_ref(),
+            &self.bump,
         ]
     }
 
@@ -158,5 +162,15 @@ impl Bounty {
 
     pub fn validate_vote_type(&self, vote_type: u8) {
         let _ = VoteTYpe::from(vote_type);
+    }
+
+    pub fn validate_participants_empty(&self) -> Result<()> {
+        for participant in &self.participants {
+            if participant.amount != 0 {
+                return Err(ProgramError::InvalidAccountData.into());
+            }
+        }
+
+        Ok(())
     }
 }

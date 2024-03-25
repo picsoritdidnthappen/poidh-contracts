@@ -83,6 +83,7 @@ pub fn create_bounty(ctx: Context<CreateBounty>, args: CreateBountyParams) -> Re
         created_at,
         bounty_type,
         vote_type,
+        ctx.bumps.bounty,
     );
 
     Ok(())

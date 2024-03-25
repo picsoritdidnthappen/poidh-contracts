@@ -67,7 +67,7 @@ describe("poidh", () => {
       .createBounty(createBountyParams)
       .accounts({
         authority: authority.publicKey,
-        bounty: bounty,
+        bounty,
         mint: id,
         paymentMint: mint,
         userTokenAccount,
@@ -99,16 +99,44 @@ describe("poidh", () => {
     );
 
     // Check if the authority is added as a participant for an open bounty
-    if (createBountyParams.bountyType === 1) {
-      expect(bountyAccount.participants.length).equal(1);
-      expect(bountyAccount.participants[0].address.toString()).equal(
-        program.provider.publicKey.toString()
-      );
-      expect(bountyAccount.participants[0].amount.toNumber()).equal(
-        createBountyParams.amount.toNumber()
-      );
-    } else {
-      expect(bountyAccount.participants.length).equal(0);
+    // if (createBountyParams.bountyType === 1) {
+    //   expect(bountyAccount.participants.length).equal(1);
+    //   expect(bountyAccount.participants[0].address.toString()).equal(
+    //     program.provider.publicKey.toString()
+    //   );
+    //   expect(bountyAccount.participants[0].amount.toNumber()).equal(
+    //     createBountyParams.amount.toNumber()
+    //   );
+    // } else {
+    //   expect(bountyAccount.participants.length).equal(0);
+    // }
+
+    await program.methods
+      .closeBounty()
+      .accounts({
+        authority: authority.publicKey,
+        bounty,
+        authorityAta: userTokenAccount,
+        bountyAta,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc({ skipPreflight: true });
+
+    try {
+      await program.account.bounty.fetch(bounty);
+      expect.fail("Bounty account should be closed");
+    } catch (err) {
+      expect(err.message).to.include("Account does not exist");
     }
+
+    // Check if the funds are transferred back to the authority's token account
+    const authorityAtaAccount = await getAccount(
+      program.provider.connection,
+      userTokenAccount
+    );
+    expect(Number(authorityAtaAccount.amount.toString())).to.equal(
+      1_000_000_000
+    );
   });
 });

@@ -17,7 +17,8 @@ pub mod poidh {
     pub fn create_bounty(ctx: Context<CreateBounty>, args: CreateBountyParams) -> Result<()> {
         instructions::create_bounty(ctx, args)
     }
-}
 
-#[derive(Accounts)]
-pub struct Initialize {}
+    pub fn close_bounty(ctx: Context<CloseBounty>) -> Result<()> {
+        instructions::close_bounty(ctx)
+    }
+}
