@@ -20,7 +20,7 @@ async function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-interface ViewBounty {
+interface Bounty {
   id: bigint;
   issuer: string;
   name: string;
@@ -29,11 +29,6 @@ interface ViewBounty {
   claimer: string;
   createdAt: bigint;
   claimId: bigint;
-  participants: string[];
-  participantAmounts: { [key: string]: bigint };
-  yesVotes: bigint;
-  noVotes: bigint;
-  deadline: bigint;
 }
 
 interface Claim {
@@ -117,37 +112,24 @@ describe('Open Bounty Simulation', function () {
 
     await wait(1000);
 
-    const b: ViewBounty = await poidhV2
-      .getBounties(0)
-      .then((b: ViewBounty[]) =>
-        b.filter((x: ViewBounty) => x.issuer !== ethers.ZeroAddress),
-      )
-      .then((x: ViewBounty[]) => x[0]);
-    expect(b.participants.length).to.equal(6);
-    expect(b.participantAmounts.length).to.equal(6);
-
-    bounty.participants!.forEach((p, i) => {
-      expect(b.participants).to.include(p.address);
-      expect(b.participantAmounts[i]).to.equal(ethers.parseEther(p.amount));
-    });
+    const payload = await poidhV2.getParticipants(0);
+    const participants: string[] = payload[0];
+    const participantAmounts: bigint[] = payload[1];
+    expect(participants.length).to.equal(6);
+    expect(participantAmounts.length).to.equal(6);
 
     await submitClaimForVote(poidhV2, '0', '1');
 
-    const bountyAfterSubmitClaim = await poidhV2
-      .getBounties(0)
-      .then((b: ViewBounty[]) =>
-        b.filter((x: ViewBounty) => x.issuer !== ethers.ZeroAddress),
-      )
-      .then((x: ViewBounty[]) => x[0]);
+    const bountyAfterSubmitClaim = await poidhV2.bountyVotingTracker(0);
 
     const timestamp = await time.latest();
     const twoDaysInSeconds = 172800;
 
-    expect(bountyAfterSubmitClaim.deadline).to.be.closeTo(
+    expect(bountyAfterSubmitClaim[2]).to.be.closeTo(
       timestamp + twoDaysInSeconds,
       100,
     );
-    expect(bountyAfterSubmitClaim.yesVotes).to.equal(ethers.parseEther('1'));
+    expect(bountyAfterSubmitClaim[0]).to.equal(ethers.parseEther('1'));
 
     // 2 votes, 1 yes, 1 no
     await voteClaim(poidhV2.connect(signers[1]) as Contract, '0', false);
@@ -160,10 +142,10 @@ describe('Open Bounty Simulation', function () {
 
     const bountyAfterVotes = await poidhV2
       .getBounties(0)
-      .then((b: ViewBounty[]) =>
-        b.filter((x: ViewBounty) => x.issuer !== ethers.ZeroAddress),
+      .then((b: Bounty[]) =>
+        b.filter((x: Bounty) => x.issuer !== ethers.ZeroAddress),
       )
-      .then((x: ViewBounty[]) => x[0]);
+      .then((x: Bounty[]) => x[0]);
 
     expect(bountyAfterVotes.claimer).to.equal(signers[2].address);
     expect(bountyAfterVotes.claimId).to.equal(1);
@@ -171,7 +153,7 @@ describe('Open Bounty Simulation', function () {
     const c: Claim[] = await poidhV2.getClaimsByBountyId(0);
     expect(c[1].accepted).to.equal(true);
 
-    const balance = await poidhV2Nft.balanceOf(signers[2].address);
+    const balance = await poidhV2Nft.balanceOf(signers[0].address);
     expect(balance).to.equal(1);
   });
   it('Can withdraw from a public bounty', async function () {
@@ -202,28 +184,20 @@ describe('Open Bounty Simulation', function () {
 
     await wait(1000);
 
-    const b: ViewBounty = await poidhV2
-      .getBounties(1)
-      .then((b: ViewBounty[]) =>
-        b.filter((x: ViewBounty) => x.issuer !== ethers.ZeroAddress),
-      )
-      .then((x: ViewBounty[]) => x[0]);
+    const payload = await poidhV2.getParticipants(1);
+    const participants: string[] = payload[0];
+    const participantAmounts: bigint[] = payload[1];
 
-    expect(b.participants.length).to.equal(6);
-    expect(b.participantAmounts.length).to.equal(6);
+    expect(participants.length).to.equal(6);
+    expect(participantAmounts.length).to.equal(6);
 
     await withdrawFromOpenBounty(poidhV2.connect(signers[2]) as Contract, '1');
 
     await wait(1000);
 
-    const bAfterWithdraw = await poidhV2
-      .getBounties(1)
-      .then((b: ViewBounty[]) =>
-        b.filter((x: ViewBounty) => x.issuer !== ethers.ZeroAddress),
-      )
-      .then((x: ViewBounty[]) => x[0]);
+    const payloadAfter = await poidhV2.getParticipants(1);
 
-    expect(bAfterWithdraw.participants).to.include(ethers.ZeroAddress);
+    expect(payloadAfter[0]).to.include(ethers.ZeroAddress);
   });
   it('Can cancel an open bounty and refund participants', async function () {
     const signers = await ethers.getSigners();
@@ -232,10 +206,10 @@ describe('Open Bounty Simulation', function () {
 
     const bAfterCancel = await poidhV2
       .getBounties(1)
-      .then((b: ViewBounty[]) =>
-        b.filter((x: ViewBounty) => x.issuer !== ethers.ZeroAddress),
+      .then((b: Bounty[]) =>
+        b.filter((x: Bounty) => x.issuer !== ethers.ZeroAddress),
       )
-      .then((x: ViewBounty[]) => x[0]);
+      .then((x: Bounty[]) => x[0]);
 
     expect(bAfterCancel.claimer).to.equal(signers[0].address);
   });

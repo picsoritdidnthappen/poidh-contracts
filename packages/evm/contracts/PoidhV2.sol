@@ -27,22 +27,6 @@ contract PoidhV2 {
         uint256 claimId;
     }
 
-    struct ViewBounty {
-        uint256 id;
-        address issuer;
-        string name;
-        string description;
-        uint256 amount;
-        address claimer;
-        uint256 createdAt;
-        uint256 claimId;
-        address[] participants;
-        uint256[] participantAmounts;
-        uint256 yesVotes;
-        uint256 noVotes;
-        uint256 deadline;
-    }
-
     struct Claim {
         uint256 id;
         address issuer;
@@ -163,20 +147,17 @@ contract PoidhV2 {
         treasury = _treasury;
     }
 
-    /** Create Solo Bounty */
     /**
-     * @dev Allows the sender to create a bounty with a given name and description
+     * @dev Internal function to create a bounty
      * @param name the name of the bounty
      * @param description the description of the bounty
+     * @return bountyId the id of the created bounty
      */
-    function createSoloBounty(
+    function _createBounty(
         string calldata name,
         string calldata description
-    ) external payable {
-        if (msg.value == 0) revert NoEther();
-
-        uint256 bountyId = bountyCounter;
-
+    ) internal returns (uint256 bountyId) {
+        bountyId = bountyCounter;
         Bounty memory bounty = Bounty(
             bountyId,
             msg.sender,
@@ -189,7 +170,6 @@ contract PoidhV2 {
         );
         bounties.push(bounty);
         userBounties[msg.sender].push(bountyId);
-
         ++bountyCounter;
 
         emit BountyCreated(
@@ -202,6 +182,21 @@ contract PoidhV2 {
         );
     }
 
+    /** Create Solo Bounty */
+    /**
+     * @dev Allows the sender to create a bounty with a given name and description
+     * @param name the name of the bounty
+     * @param description the description of the bounty
+     */
+    function createSoloBounty(
+        string calldata name,
+        string calldata description
+    ) external payable {
+        if (msg.value == 0) revert NoEther();
+
+        _createBounty(name, description);
+    }
+
     /** Create Open Participation Bounty */
     function createOpenBounty(
         string calldata name,
@@ -209,34 +204,10 @@ contract PoidhV2 {
     ) external payable {
         if (msg.value == 0) revert NoEther();
 
-        uint256 bountyId = bountyCounter;
+        uint256 bountyId = _createBounty(name, description);
 
-        Bounty memory bounty = Bounty(
-            bountyId,
-            msg.sender,
-            name,
-            description,
-            msg.value,
-            address(0),
-            block.timestamp,
-            0
-        );
-
-        bounties.push(bounty);
-        userBounties[msg.sender].push(bountyId);
         participants[bountyId].push(msg.sender);
         participantAmounts[bountyId].push(msg.value);
-
-        ++bountyCounter;
-
-        emit BountyCreated(
-            bountyId,
-            msg.sender,
-            name,
-            description,
-            msg.value,
-            block.timestamp
-        );
     }
 
     /** Join Open Bounty
@@ -423,7 +394,7 @@ contract PoidhV2 {
                 (votingTracker.yes + participantAmount + votingTracker.no) / 2
             ) {
                 // accept claim and close out bounty
-                acceptClaim(bountyId, currentClaim);
+                _acceptClaim(bountyId, currentClaim);
             }
             bountyVotingTracker[bountyId].yes += participantAmount;
         } else {
@@ -491,22 +462,41 @@ contract PoidhV2 {
      * @param bountyId the id of the bounty being claimed
      * @param claimId the id of the claim being accepted
      */
-    function acceptClaim(
+    function acceptClaimSolo(
         uint256 bountyId,
         uint256 claimId
-    ) public bountyChecks(bountyId) {
+    ) external bountyChecks(bountyId) {
         if (claimId >= claimCounter) revert ClaimNotFound();
 
-        Bounty memory bounty = bounties[bountyId];
+        Bounty storage bounty = bounties[bountyId];
+        if (participants[bountyId].length > 0) {
+            revert NotSoloBounty();
+        } else {
+            if (msg.sender != bounty.issuer) revert WrongCaller();
+        }
+
+        _acceptClaim(bountyId, claimId);
+    }
+
+    /**
+     * @dev Internal function to accept a claim
+     * @param bountyId the id of the bounty being claimed
+     * @param claimId the id of the claim being accepted
+     */
+    function _acceptClaim(uint256 bountyId, uint256 claimId) internal {
+        if (claimId >= claimCounter) revert ClaimNotFound();
+        Bounty storage bounty = bounties[bountyId];
         if (bounty.amount > address(this).balance) revert BountyAmountTooHigh();
 
-        address claimIssuer = claims[claimId].issuer;
+        Claim memory claim = claims[claimId];
+        if (claim.bountyId != bountyId) revert ClaimNotFound();
+
+        address claimIssuer = claim.issuer;
         uint256 bountyAmount = bounty.amount;
 
         // Close out the bounty
-        bounties[bountyId].claimer = claimIssuer;
-        bounties[bountyId].claimId = claimId;
-
+        bounty.claimer = claimIssuer;
+        bounty.claimId = claimId;
         claims[claimId].accepted = true;
 
         // Calculate the fee (2.5% of bountyAmount)
@@ -515,33 +505,23 @@ contract PoidhV2 {
         // Subtract the fee from the bountyAmount
         uint256 payout = bountyAmount - fee;
 
-        // Store the claim issuer and bounty amount for use after external calls
-        address payable pendingPayee = payable(claimIssuer);
-        uint256 pendingPayment = payout;
-
-        // Store the treasury address for use after external calls
-        address payable t = payable(treasury); // replace 'treasury_address_here' with your actual treasury address
-
         // Transfer the claim NFT to the bounty issuer
-        poidhV2Nft.safeTransfer(address(this), msg.sender, claimId, '');
+        poidhV2Nft.safeTransfer(address(this), bounty.issuer, claimId, '');
 
-        // Finally, transfer the bounty amount to the claim issuer
-        (bool s1, ) = pendingPayee.call{value: pendingPayment}('');
-        if (!s1) revert transferFailed();
+        // Transfer the bounty amount to the claim issuer
+        (bool success, ) = claimIssuer.call{value: payout}('');
+        if (!success) revert transferFailed();
 
-        (bool s2, ) = t.call{value: fee}('');
-        if (!s2) revert transferFailed();
+        // Transfer the fee to the treasury
+        (bool feeSuccess, ) = treasury.call{value: fee}('');
+        if (!feeSuccess) revert transferFailed();
 
-        emit ClaimAccepted(bountyId, claimId, claimIssuer, bounty.issuer, fee); // update event parameters to include the fee
+        emit ClaimAccepted(bountyId, claimId, claimIssuer, bounty.issuer, fee);
     }
 
     /** Getter for the length of the bounties array */
     function getBountiesLength() public view returns (uint256) {
         return bounties.length;
-    }
-
-    function getBounty(uint256 bountyId) public view returns (Bounty memory) {
-        return bounties[bountyId];
     }
 
     /**
@@ -551,30 +531,15 @@ contract PoidhV2 {
      */
     function getBounties(
         uint offset
-    ) public view returns (ViewBounty[10] memory result) {
+    ) public view returns (Bounty[10] memory result) {
         uint256 length = bounties.length;
         uint256 remaining = length - offset;
         uint256 numBounties = remaining < 10 ? remaining : 10;
 
         for (uint i = 0; i < numBounties; i++) {
             Bounty storage bounty = bounties[offset + i];
-            Votes storage vote = bountyVotingTracker[bounty.id];
 
-            result[i] = ViewBounty({
-                id: bounty.id,
-                issuer: bounty.issuer,
-                name: bounty.name,
-                description: bounty.description,
-                amount: bounty.amount,
-                claimer: bounty.claimer,
-                createdAt: bounty.createdAt,
-                claimId: bounty.claimId,
-                participants: participants[bounty.id],
-                participantAmounts: participantAmounts[bounty.id],
-                yesVotes: vote.yes,
-                noVotes: vote.no,
-                deadline: vote.deadline
-            });
+            result[i] = bounty;
         }
     }
 
@@ -606,31 +571,14 @@ contract PoidhV2 {
     function getBountiesByUser(
         address user,
         uint256 offset
-    ) public view returns (ViewBounty[10] memory result) {
+    ) public view returns (Bounty[10] memory result) {
         uint256[] memory bountyIds = userBounties[user];
         uint256 length = bountyIds.length;
         uint256 remaining = length - offset;
         uint256 numBounties = remaining < 10 ? remaining : 10;
 
         for (uint i = 0; i < numBounties; i++) {
-            Bounty storage b = bounties[bountyIds[offset + i]];
-            Votes storage v = bountyVotingTracker[b.id];
-
-            result[i] = ViewBounty({
-                id: b.id,
-                issuer: b.issuer,
-                name: b.name,
-                description: b.description,
-                amount: b.amount,
-                claimer: b.claimer,
-                createdAt: b.createdAt,
-                claimId: b.claimId,
-                participants: participants[b.id],
-                participantAmounts: participantAmounts[b.id],
-                yesVotes: v.yes,
-                noVotes: v.no,
-                deadline: v.deadline
-            });
+            result[i] = bounties[bountyIds[offset + i]];
         }
     }
 
@@ -650,6 +598,29 @@ contract PoidhV2 {
         }
 
         return userClaimsArray;
+    }
+
+    /** get bounty participants */
+    /** 
+        @dev Returns all participants for a given bounty 
+        @param bountyId the id of the bounty to fetch participants for
+    */
+    function getParticipants(
+        uint256 bountyId
+    ) public view returns (address[] memory, uint256[] memory) {
+        address[] memory p = participants[bountyId];
+        uint256[] memory a = participantAmounts[bountyId];
+        uint256 pLength = p.length;
+
+        address[] memory result = new address[](pLength);
+        uint256[] memory amounts = new uint256[](pLength);
+
+        for (uint256 i = 0; i < pLength; i++) {
+            result[i] = p[i];
+            amounts[i] = a[i];
+        }
+
+        return (result, amounts);
     }
 
     function onERC721Received(
