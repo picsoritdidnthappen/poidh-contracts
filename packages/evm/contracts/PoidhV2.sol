@@ -462,14 +462,17 @@ contract PoidhV2 {
      * @param bountyId the id of the bounty being claimed
      * @param claimId the id of the claim being accepted
      */
-    function acceptClaimSolo(
+    function acceptClaim(
         uint256 bountyId,
         uint256 claimId
     ) external bountyChecks(bountyId) {
         if (claimId >= claimCounter) revert ClaimNotFound();
 
         Bounty storage bounty = bounties[bountyId];
-        if (participants[bountyId].length > 0) {
+        /**
+         * @dev note: if the bounty has more than one participant, it is considered truly open, and the issuer cannot accept the claim without a vote.
+         */
+        if (participants[bountyId].length > 1) {
             revert NotSoloBounty();
         } else {
             if (msg.sender != bounty.issuer) revert WrongCaller();
