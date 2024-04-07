@@ -388,20 +388,32 @@ contract PoidhV2 {
         if (participantAmount == 0) revert NotActiveParticipant();
 
         Votes memory votingTracker = bountyVotingTracker[bountyId];
-        if (vote) {
-            if (
-                votingTracker.yes + participantAmount >
-                (votingTracker.yes + participantAmount + votingTracker.no) / 2
-            ) {
-                // accept claim and close out bounty
-                _acceptClaim(bountyId, currentClaim);
-            }
-            bountyVotingTracker[bountyId].yes += participantAmount;
-        } else {
-            bountyVotingTracker[bountyId].no += participantAmount;
-        }
+        vote
+            ? votingTracker.yes += participantAmount
+            : votingTracker.no += participantAmount;
 
         emit VoteClaim(msg.sender, bountyId, currentClaim);
+    }
+
+    function resolveVote(uint256 bountyId) external {
+        address[] memory p = participants[bountyId];
+        if (p.length == 0) revert NotOpenBounty();
+
+        uint256 currentClaim = bountyCurrentVotingClaim[bountyId];
+        if (currentClaim == 0) revert NoVotingPeriodSet();
+
+        Votes memory votingTracker = bountyVotingTracker[bountyId];
+        if (block.timestamp < votingTracker.deadline) revert VotingOngoing();
+
+        if (votingTracker.yes > ((votingTracker.no + votingTracker.yes) / 2)) {
+            // Accept the claim and close out the bounty
+            _acceptClaim(bountyId, currentClaim);
+        } else {
+            // Reset everything
+            bountyCurrentVotingClaim[bountyId] = 0;
+            delete bountyVotingTracker[bountyId];
+            emit ResetVotingPeriod(bountyId);
+        }
     }
 
     /**
