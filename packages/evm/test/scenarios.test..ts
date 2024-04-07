@@ -140,6 +140,15 @@ describe('Open Bounty Simulation', function () {
 
     await wait(1000);
 
+    await time.increase(172800);
+
+    await poidhV2.resolveVote('0');
+
+
+
+    await wait(1000);
+
+    
     const bountyAfterVotes = await poidhV2
       .getBounties(0)
       .then((b: Bounty[]) =>
