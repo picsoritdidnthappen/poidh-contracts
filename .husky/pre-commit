@@ -1,6 +1,9 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
+cargo fmt
+cargo clippy
+
 yarn lint
 yarn evm:compile
 yarn format

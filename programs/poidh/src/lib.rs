@@ -1,4 +1,13 @@
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::new_ret_no_self)]
 use anchor_lang::prelude::*;
+
+pub mod error;
+pub mod instructions;
+pub mod state;
+
+use instructions::*;
+use state::*;
 
 declare_id!("HFD3185JaPEQRXAcCgiwJT6amphebDJJRsCQtwCQyovZ");
 
@@ -6,10 +15,15 @@ declare_id!("HFD3185JaPEQRXAcCgiwJT6amphebDJJRsCQtwCQyovZ");
 pub mod poidh {
     use super::*;
 
-    pub fn initialize(_ctx: Context<Initialize>) -> Result<()> {
-        Ok(())
+    pub fn create_bounty(ctx: Context<CreateBounty>, args: CreateBountyParams) -> Result<()> {
+        instructions::create_bounty(ctx, args)
+    }
+
+    pub fn close_bounty(ctx: Context<CloseBounty>) -> Result<()> {
+        instructions::close_bounty(ctx)
+    }
+
+    pub fn join_bounty(ctx: Context<JoinBounty>, amount: u64) -> Result<()> {
+        instructions::join_bounty(ctx, amount)
     }
 }
-
-#[derive(Accounts)]
-pub struct Initialize {}
