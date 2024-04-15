@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
+pragma solidity 0.8.19;
+
+// import '@openzeppelin/contracts@4.9.0/token/ERC721/IERC721.sol';
+// import '@openzeppelin/contracts@4.9.0/token/ERC721/IERC721Receiver.sol';
 
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
@@ -387,7 +390,7 @@ contract PoidhV2 {
 
         if (participantAmount == 0) revert NotActiveParticipant();
 
-        Votes memory votingTracker = bountyVotingTracker[bountyId];
+        Votes storage votingTracker = bountyVotingTracker[bountyId];
         vote
             ? votingTracker.yes += participantAmount
             : votingTracker.no += participantAmount;

@@ -1,29 +1,23 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
+pragma solidity 0.8.19;
+
+// import '@openzeppelin/contracts@4.9.0/token/ERC721/ERC721.sol';
+// import '@openzeppelin/contracts@4.9.0/token/ERC721/extensions/ERC721Enumerable.sol';
+// import '@openzeppelin/contracts@4.9.0/token/ERC721/extensions/ERC721URIStorage.sol';
+// import '@openzeppelin/contracts@4.9.0/token/ERC721/IERC721Receiver.sol';
+// import '@openzeppelin/contracts@4.9.0/token/ERC721/extensions/ERC721Royalty.sol';
 
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol';
-import 'hardhat/console.sol';
 
-contract PoidhV2Nft is
-    ERC721,
-    ERC721Enumerable,
-    ERC721URIStorage,
-    IERC721Receiver,
-    ERC721Royalty
-{
+
+contract PoidhV2Nft is ERC721, ERC721Enumerable, ERC721URIStorage, IERC721Receiver, ERC721Royalty {
     address public immutable poidhV2Authority;
-    address public poidh;
+    mapping(address => bool) public poidhContracts;
 
-    /**
-     * @dev Constructor function
-     * @param _poidhV2Authority the address of the royalty recipient
-     * @param _treasury the address of the royalty recipient
-     * @param _feeNumerator the fee numerator for the royalty (1000 ~ 10%)
-     */
     constructor(
         address _treasury,
         address _poidhV2Authority,
@@ -33,13 +27,13 @@ contract PoidhV2Nft is
         _setDefaultRoyalty(_treasury, _feeNumerator);
     }
 
-    function setPoidhV2(address _poidhV2) external {
+    function setPoidhContract(address _poidhContract, bool _hasPermission) external {
         require(
             msg.sender == poidhV2Authority,
-            'only poidhV2Authority can set poidhV2'
+            'only poidhV2Authority can set poidh contracts'
         );
-        poidh = _poidhV2;
-        setApprovalForAll(poidh, true);
+        poidhContracts[_poidhContract] = _hasPermission;
+        setApprovalForAll(_poidhContract, _hasPermission);
     }
 
     function mint(
@@ -47,10 +41,7 @@ contract PoidhV2Nft is
         uint256 claimCounter,
         string memory uri
     ) external {
-        if (msg.sender != poidh) {
-            revert('only poidh can mint');
-        }
-
+        require(poidhContracts[msg.sender], 'only authorized poidh contracts can mint');
         _safeMint(to, claimCounter);
         _setTokenURI(claimCounter, uri);
     }
@@ -64,10 +55,12 @@ contract PoidhV2Nft is
         _safeTransfer(from, to, tokenId, data);
     }
 
-    /** get claims by bounty */
-    function tokenURI(
-        uint256 tokenId
-    ) public view override(ERC721, ERC721URIStorage) returns (string memory) {
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override(ERC721, ERC721URIStorage)
+        returns (string memory)
+    {
         return super.tokenURI(tokenId);
     }
 
@@ -80,9 +73,7 @@ contract PoidhV2Nft is
         return this.onERC721Received.selector;
     }
 
-    function supportsInterface(
-        bytes4 interfaceId
-    )
+    function supportsInterface(bytes4 interfaceId)
         public
         view
         override(ERC721, ERC721Enumerable, ERC721URIStorage, ERC721Royalty)
@@ -91,18 +82,18 @@ contract PoidhV2Nft is
         return super.supportsInterface(interfaceId);
     }
 
-    function _update(
+    // Override _beforeTokenTransfer function
+    function _beforeTokenTransfer(
+        address from,
         address to,
-        uint256 tokenId,
-        address auth
-    ) internal virtual override(ERC721, ERC721Enumerable) returns (address) {
-        return super._update(to, tokenId, auth);
+        uint256 firstTokenId,
+        uint256 batchSize
+    ) internal virtual override(ERC721, ERC721Enumerable) {
+        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
     }
 
-    function _increaseBalance(
-        address account,
-        uint128 amount
-    ) internal virtual override(ERC721, ERC721Enumerable) {
-        super._increaseBalance(account, amount);
+    // Override _burn function
+    function _burn(uint256 tokenId) internal virtual override(ERC721, ERC721URIStorage, ERC721Royalty) {
+        super._burn(tokenId);
     }
 }
