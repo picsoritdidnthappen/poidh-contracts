@@ -42,6 +42,17 @@ interface Claim {
   accepted: boolean;
 }
 
+interface Participants {
+  participants: string[];
+  participantAmounts: number[];
+}
+
+interface Votes {
+  yes: bigint;
+  no: bigint;
+  deadline: bigint;
+}
+
 describe('Open Bounty Simulation', function () {
   let poidhV2: Contract;
   let poidhV2Nft: Contract;
@@ -66,7 +77,7 @@ describe('Open Bounty Simulation', function () {
       owner.address,
     )) as Contract;
 
-    await poidhV2Nft.setPoidhV2(await poidhV2.getAddress());
+    await poidhV2Nft.setPoidhContract(await poidhV2.getAddress(), true);
   });
 
   it('Simulates a Voting Cycle', async function () {
@@ -112,24 +123,32 @@ describe('Open Bounty Simulation', function () {
 
     await wait(1000);
 
-    const payload = await poidhV2.getParticipants(0);
-    const participants: string[] = payload[0];
-    const participantAmounts: bigint[] = payload[1];
-    expect(participants.length).to.equal(6);
-    expect(participantAmounts.length).to.equal(6);
+    const participantsRaw = await poidhV2.getParticipants(0);
+    const b: Participants = {
+      participants: participantsRaw[0],
+      participantAmounts: participantsRaw[1],
+    };
+
+    expect(b.participants.length).to.equal(6);
+    expect(b.participantAmounts.length).to.equal(6);
+
+    bounty.participants!.forEach((p, i) => {
+      expect(b.participants).to.include(p.address);
+      expect(b.participantAmounts[i]).to.equal(ethers.parseEther(p.amount));
+    });
 
     await submitClaimForVote(poidhV2, '0', '1');
 
-    const bountyAfterSubmitClaim = await poidhV2.bountyVotingTracker(0);
+    const bountyAfterSubmitClaim: Votes = await poidhV2.bountyVotingTracker(0);
 
     const timestamp = await time.latest();
     const twoDaysInSeconds = 172800;
 
-    expect(bountyAfterSubmitClaim[2]).to.be.closeTo(
+    expect(bountyAfterSubmitClaim.deadline).to.be.closeTo(
       timestamp + twoDaysInSeconds,
       100,
     );
-    expect(bountyAfterSubmitClaim[0]).to.equal(ethers.parseEther('1'));
+    expect(bountyAfterSubmitClaim.yes).to.equal(1000000000000000000n);
 
     // 2 votes, 1 yes, 1 no
     await voteClaim(poidhV2.connect(signers[1]) as Contract, '0', false);
@@ -138,17 +157,13 @@ describe('Open Bounty Simulation', function () {
 
     await voteClaim(poidhV2.connect(signers[2]) as Contract, '0', true);
 
+    await time.increaseTo(bountyAfterSubmitClaim.deadline);
     await wait(1000);
 
-    await time.increase(172800);
+    await poidhV2.resolveVote(0);
 
-    await poidhV2.resolveVote('0');
+    await wait(2000);
 
-
-
-    await wait(1000);
-
-    
     const bountyAfterVotes = await poidhV2
       .getBounties(0)
       .then((b: Bounty[]) =>
@@ -193,20 +208,22 @@ describe('Open Bounty Simulation', function () {
 
     await wait(1000);
 
-    const payload = await poidhV2.getParticipants(1);
-    const participants: string[] = payload[0];
-    const participantAmounts: bigint[] = payload[1];
+    const participantsRaw = await poidhV2.getParticipants(0);
+    const b: Participants = {
+      participants: participantsRaw[0],
+      participantAmounts: participantsRaw[1],
+    };
 
-    expect(participants.length).to.equal(6);
-    expect(participantAmounts.length).to.equal(6);
+    expect(b.participants.length).to.equal(6);
+    expect(b.participantAmounts.length).to.equal(6);
 
     await withdrawFromOpenBounty(poidhV2.connect(signers[2]) as Contract, '1');
 
     await wait(1000);
 
-    const payloadAfter = await poidhV2.getParticipants(1);
+    const bAfterWithdraw = await poidhV2.getParticipants(1);
 
-    expect(payloadAfter[0]).to.include(ethers.ZeroAddress);
+    expect(bAfterWithdraw[0]).to.include(ethers.ZeroAddress);
   });
   it('Can cancel an open bounty and refund participants', async function () {
     const signers = await ethers.getSigners();

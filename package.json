@@ -27,5 +27,8 @@
   "lint-staged": {
     "*.js": "eslint --fix",
     "*.{js,css,md}": "prettier --write"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "4.9.0"
   }
 }
