@@ -13,8 +13,13 @@ import '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol';
 
-
-contract PoidhV2Nft is ERC721, ERC721Enumerable, ERC721URIStorage, IERC721Receiver, ERC721Royalty {
+contract PoidhV2Nft is
+    ERC721,
+    ERC721Enumerable,
+    ERC721URIStorage,
+    IERC721Receiver,
+    ERC721Royalty
+{
     address public immutable poidhV2Authority;
     mapping(address => bool) public poidhContracts;
 
@@ -27,7 +32,10 @@ contract PoidhV2Nft is ERC721, ERC721Enumerable, ERC721URIStorage, IERC721Receiv
         _setDefaultRoyalty(_treasury, _feeNumerator);
     }
 
-    function setPoidhContract(address _poidhContract, bool _hasPermission) external {
+    function setPoidhContract(
+        address _poidhContract,
+        bool _hasPermission
+    ) external {
         require(
             msg.sender == poidhV2Authority,
             'only poidhV2Authority can set poidh contracts'
@@ -41,7 +49,10 @@ contract PoidhV2Nft is ERC721, ERC721Enumerable, ERC721URIStorage, IERC721Receiv
         uint256 claimCounter,
         string memory uri
     ) external {
-        require(poidhContracts[msg.sender], 'only authorized poidh contracts can mint');
+        require(
+            poidhContracts[msg.sender],
+            'only authorized poidh contracts can mint'
+        );
         _safeMint(to, claimCounter);
         _setTokenURI(claimCounter, uri);
     }
@@ -55,12 +66,9 @@ contract PoidhV2Nft is ERC721, ERC721Enumerable, ERC721URIStorage, IERC721Receiv
         _safeTransfer(from, to, tokenId, data);
     }
 
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override(ERC721, ERC721URIStorage)
-        returns (string memory)
-    {
+    function tokenURI(
+        uint256 tokenId
+    ) public view override(ERC721, ERC721URIStorage) returns (string memory) {
         return super.tokenURI(tokenId);
     }
 
@@ -73,7 +81,9 @@ contract PoidhV2Nft is ERC721, ERC721Enumerable, ERC721URIStorage, IERC721Receiv
         return this.onERC721Received.selector;
     }
 
-    function supportsInterface(bytes4 interfaceId)
+    function supportsInterface(
+        bytes4 interfaceId
+    )
         public
         view
         override(ERC721, ERC721Enumerable, ERC721URIStorage, ERC721Royalty)
@@ -93,7 +103,9 @@ contract PoidhV2Nft is ERC721, ERC721Enumerable, ERC721URIStorage, IERC721Receiv
     }
 
     // Override _burn function
-    function _burn(uint256 tokenId) internal virtual override(ERC721, ERC721URIStorage, ERC721Royalty) {
+    function _burn(
+        uint256 tokenId
+    ) internal virtual override(ERC721, ERC721URIStorage, ERC721Royalty) {
         super._burn(tokenId);
     }
 }

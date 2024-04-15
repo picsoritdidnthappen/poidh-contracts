@@ -123,12 +123,12 @@ describe('Open Bounty Simulation', function () {
 
     await wait(1000);
 
-    const participantsRaw = await poidhV2.getParticipants(0)
+    const participantsRaw = await poidhV2.getParticipants(0);
     const b: Participants = {
       participants: participantsRaw[0],
-      participantAmounts: participantsRaw[1]
-    }
-    
+      participantAmounts: participantsRaw[1],
+    };
+
     expect(b.participants.length).to.equal(6);
     expect(b.participantAmounts.length).to.equal(6);
 
@@ -139,7 +139,7 @@ describe('Open Bounty Simulation', function () {
 
     await submitClaimForVote(poidhV2, '0', '1');
 
-    const bountyAfterSubmitClaim: Votes = await poidhV2.bountyVotingTracker(0)
+    const bountyAfterSubmitClaim: Votes = await poidhV2.bountyVotingTracker(0);
 
     const timestamp = await time.latest();
     const twoDaysInSeconds = 172800;
@@ -162,8 +162,7 @@ describe('Open Bounty Simulation', function () {
 
     await poidhV2.resolveVote(0);
 
-    await wait(2000)
-
+    await wait(2000);
 
     const bountyAfterVotes = await poidhV2
       .getBounties(0)
@@ -209,11 +208,11 @@ describe('Open Bounty Simulation', function () {
 
     await wait(1000);
 
-    const participantsRaw = await poidhV2.getParticipants(0)
+    const participantsRaw = await poidhV2.getParticipants(0);
     const b: Participants = {
       participants: participantsRaw[0],
-      participantAmounts: participantsRaw[1]
-    }
+      participantAmounts: participantsRaw[1],
+    };
 
     expect(b.participants.length).to.equal(6);
     expect(b.participantAmounts.length).to.equal(6);
@@ -222,9 +221,7 @@ describe('Open Bounty Simulation', function () {
 
     await wait(1000);
 
-    const bAfterWithdraw = await poidhV2
-      .getParticipants(1)
-
+    const bAfterWithdraw = await poidhV2.getParticipants(1);
 
     expect(bAfterWithdraw[0]).to.include(ethers.ZeroAddress);
   });

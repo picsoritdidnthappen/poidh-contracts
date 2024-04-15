@@ -68,6 +68,7 @@ contract PoidhV2 {
     mapping(uint256 => uint256[]) public participantAmounts;
     mapping(uint256 => uint256) public bountyCurrentVotingClaim;
     mapping(uint256 => Votes) public bountyVotingTracker;
+    mapping(uint256 => mapping(address => bool)) private hasVoted;
 
     /** Events */
     event BountyCreated(
@@ -121,6 +122,7 @@ contract PoidhV2 {
     error NotActiveParticipant();
     error BountyAmountTooHigh();
     error IssuerCannotWithdraw();
+    error AlreadyVoted();
 
     /** modifiers */
     /** @dev
@@ -350,6 +352,9 @@ contract PoidhV2 {
         uint256 claimId
     ) external bountyChecks(bountyId) openBountyChecks(bountyId) {
         if (claimId >= claimCounter) revert ClaimNotFound();
+        if (hasVoted[bountyId][msg.sender] == true) revert AlreadyVoted();
+
+        hasVoted[bountyId][msg.sender] = true;
 
         uint256[] memory amounts = participantAmounts[bountyId];
 
@@ -369,6 +374,9 @@ contract PoidhV2 {
         uint256 bountyId,
         bool vote
     ) external bountyChecks(bountyId) {
+        if (hasVoted[bountyId][msg.sender] == true) revert AlreadyVoted();
+        hasVoted[bountyId][msg.sender] = true;
+
         address[] memory p = participants[bountyId];
         if (p.length == 0) revert NotOpenBounty();
 
@@ -412,9 +420,12 @@ contract PoidhV2 {
             // Accept the claim and close out the bounty
             _acceptClaim(bountyId, currentClaim);
         } else {
-            // Reset everything
             bountyCurrentVotingClaim[bountyId] = 0;
             delete bountyVotingTracker[bountyId];
+
+            for (uint256 i = 0; i < p.length; i++) {
+                hasVoted[bountyId][p[i]] = false;
+            }
             emit ResetVotingPeriod(bountyId);
         }
     }
