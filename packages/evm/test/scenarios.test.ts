@@ -75,6 +75,7 @@ describe('Open Bounty Simulation', function () {
     poidhV2 = (await poidhV2Factory.deploy(
       await poidhV2Nft.getAddress(),
       owner.address,
+      0,
     )) as Contract;
 
     await poidhV2Nft.setPoidhContract(await poidhV2.getAddress(), true);

@@ -53,8 +53,8 @@ contract PoidhV2 {
 
     address public immutable treasury;
 
-    uint256 public bountyCounter = 0;
-    uint256 public claimCounter = 0;
+    uint256 public bountyCounter;
+    uint256 public claimCounter;
 
     uint256 public votingPeriod = 2 days;
     bool public poidhV2NftSet = false;
@@ -147,9 +147,14 @@ contract PoidhV2 {
         _;
     }
 
-    constructor(address _poidhV2Nft, address _treasury) {
+    constructor(
+        address _poidhV2Nft,
+        address _treasury,
+        uint256 _startClaimIndex
+    ) {
         poidhV2Nft = IPoidhV2Nft(_poidhV2Nft);
         treasury = _treasury;
+        claimCounter = _startClaimIndex;
     }
 
     /**

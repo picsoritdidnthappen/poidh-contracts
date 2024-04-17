@@ -24,6 +24,7 @@ describe('PoidhV2', function () {
     poidhV2 = (await poidhV2Factory.deploy(
       owner.address,
       owner.address,
+      0,
     )) as Contract;
   });
 
