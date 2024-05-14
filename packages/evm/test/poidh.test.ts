@@ -8,24 +8,38 @@ import {
   createOpenBounty,
   cancelSoloBounty,
   joinOpenBounty,
+  withdrawFromOpenBounty,
+  createClaim,
 } from './utils';
 import * as testData from './test-data.json';
 
 describe('PoidhV2', function () {
   let poidhV2: Contract;
   let poidhV2Factory: ContractFactory;
+  let poidhV2Nft: Contract;
+  let poidhV2NftFactory: ContractFactory;
   let owner: SignerWithAddress;
   let alice: SignerWithAddress;
 
   before(async function () {
     [owner, alice] = await ethers.getSigners();
 
+    // create nft contract
+    poidhV2NftFactory = await ethers.getContractFactory('PoidhV2Nft');
+    poidhV2Nft = (await poidhV2NftFactory.deploy(
+      owner.address,
+      owner.address,
+      '500',
+    )) as Contract;
+
     poidhV2Factory = await ethers.getContractFactory('PoidhV2');
     poidhV2 = (await poidhV2Factory.deploy(
-      owner.address,
+      await poidhV2Nft.getAddress(),
       owner.address,
       0,
     )) as Contract;
+
+    await poidhV2Nft.setPoidhContract(await poidhV2.getAddress(), true);
   });
 
   describe('Deployment', function () {
@@ -157,6 +171,26 @@ describe('PoidhV2', function () {
         ethers.parseEther('1'),
         ethers.parseEther('0.1'),
       );
+    });
+    it('should allow the issuer to accept a claim if there is only one active participant', async function () {
+      await createOpenBounty(poidhV2, 'Open Bounty', 'Description', '1');
+
+      const bountyLength = await poidhV2.getBountiesLength();
+      expect(bountyLength).to.equal(4);
+
+      await joinOpenBounty(poidhV2.connect(alice) as Contract, '3', '1');
+
+      await withdrawFromOpenBounty(poidhV2.connect(alice) as Contract, '3');
+
+      await createClaim(
+        poidhV2.connect(alice) as Contract,
+        '3',
+        'Claim',
+        'Description',
+        'lololol',
+      );
+
+      await poidhV2.acceptClaim('3', '0');
     });
   });
 });

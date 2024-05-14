@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-// import '@openzeppelin/contracts@4.9.0/token/ERC721/IERC721.sol';
-// import '@openzeppelin/contracts@4.9.0/token/ERC721/IERC721Receiver.sol';
-
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
+
+// remix requires version to be specified
+// import '@openzeppelin/contracts@4.9.0/token/ERC721/IERC721.sol';
+// import '@openzeppelin/contracts@4.9.0/token/ERC721/IERC721Receiver.sol';
 
 interface IPoidhV2Nft is IERC721, IERC721Receiver {
     function mint(address to, uint256 claimCounter, string memory uri) external;
@@ -155,6 +156,10 @@ contract PoidhV2 {
         poidhV2Nft = IPoidhV2Nft(_poidhV2Nft);
         treasury = _treasury;
         claimCounter = _startClaimIndex;
+
+        for (uint256 i = 0; i < claimCounter; i++) {
+            claims.push();
+        }
     }
 
     /**
@@ -503,8 +508,15 @@ contract PoidhV2 {
         /**
          * @dev note: if the bounty has more than one participant, it is considered truly open, and the issuer cannot accept the claim without a vote.
          */
-        if (participants[bountyId].length > 1) {
-            revert NotSoloBounty();
+        address[] memory p = participants[bountyId];
+        if (p.length > 1) {
+            uint256 i = 1; // Start from index 1 since the first participant is always non-zero
+            do {
+                if (p[i] != address(0)) {
+                    revert NotSoloBounty();
+                }
+                i++;
+            } while (i < p.length);
         } else {
             if (msg.sender != bounty.issuer) revert WrongCaller();
         }
